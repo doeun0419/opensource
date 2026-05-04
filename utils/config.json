@@ -1,10 +1,10 @@
 {
-    "Email_Send": "",
-    "Email_Receive": "",
-    "Email_Password": "",
     "url": "",
     "ALERT": false,
     "Threshold": 10,
+    "Web_Update": false,
+    "Web_Update_URL": "",
+    "Web_Update_Timeout": 2,
     "Thread": false,
     "Log": false,
     "Scheduler": false,

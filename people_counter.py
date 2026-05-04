@@ -2,7 +2,6 @@ from tracker.centroidtracker import CentroidTracker
 from tracker.trackableobject import TrackableObject
 from imutils.video import VideoStream
 from itertools import zip_longest
-from utils.mailer import Mailer
 from imutils.video import FPS
 from utils import thread
 import numpy as np
@@ -17,6 +16,8 @@ import dlib
 import json
 import csv
 import cv2
+import urllib.error
+import urllib.request
 
 # execution start time
 start_time = time.time()
@@ -46,10 +47,6 @@ def parse_arguments():
     args = vars(ap.parse_args())
     return args
 
-def send_mail():
-	# function to send the email alerts
-	Mailer().send(config["Email_Receive"])
-
 def log_data(move_in, in_time, move_out, out_time):
 	# function to log the counting data
 	data = [move_in, in_time, move_out, out_time]
@@ -61,6 +58,51 @@ def log_data(move_in, in_time, move_out, out_time):
 		if myfile.tell() == 0: # check if header rows are already existing
 			wr.writerow(("Move In", "In Time", "Move Out", "Out Time"))
 			wr.writerows(export_data)
+
+def post_count_update(event, total_enter, total_exit, current_inside, timestamp):
+	# function to post counting events to a web service
+	if not config.get("Web_Update"):
+		return
+
+	webhook_url = config.get("Web_Update_URL")
+	if not webhook_url:
+		logger.warning("Web update is enabled but Web_Update_URL is empty.")
+		return
+
+	payload = {
+		"event": event,
+		"total_enter": total_enter,
+		"total_exit": total_exit,
+		"current_inside": current_inside,
+		"timestamp": timestamp,
+	}
+	data = json.dumps(payload).encode("utf-8")
+	request = urllib.request.Request(
+		webhook_url,
+		data=data,
+		headers={"Content-Type": "application/json"},
+		method="POST"
+	)
+
+	try:
+		timeout = config.get("Web_Update_Timeout", 2)
+		with urllib.request.urlopen(request, timeout=timeout) as response:
+			if response.status >= 400:
+				logger.warning("Web update failed with status %s.", response.status)
+	except (urllib.error.URLError, TimeoutError) as error:
+		logger.warning("Web update failed: %s", error)
+
+def send_count_update(event, total_enter, total_exit, current_inside, timestamp):
+	# send web updates in a background thread so video processing keeps running
+	if not config.get("Web_Update"):
+		return
+
+	update_thread = threading.Thread(
+		target=post_count_update,
+		args=(event, total_enter, total_exit, current_inside, timestamp)
+	)
+	update_thread.daemon = True
+	update_thread.start()
 
 def people_counter():
 	# main function for people_counter.py
@@ -263,6 +305,9 @@ def people_counter():
 						date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 						move_out.append(totalUp)
 						out_time.append(date_time)
+						current_inside = len(move_in) - len(move_out)
+						total = [current_inside]
+						send_count_update("exit", totalDown, totalUp, current_inside, date_time)
 						to.counted = True
 
 					# if the direction is positive (indicating the object
@@ -273,20 +318,15 @@ def people_counter():
 						date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 						move_in.append(totalDown)
 						in_time.append(date_time)
-						# if the people limit exceeds over threshold, send an email alert
+						# compute the sum of total people inside
+						current_inside = len(move_in) - len(move_out)
+						total = [current_inside]
+						send_count_update("enter", totalDown, totalUp, current_inside, date_time)
+						# if the people limit exceeds over threshold, show an on-screen alert
 						if sum(total) >= config["Threshold"]:
 							cv2.putText(frame, "-ALERT: People limit exceeded-", (10, frame.shape[0] - 80),
 								cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2)
-							if config["ALERT"]:
-								logger.info("Sending email alert..")
-								email_thread = threading.Thread(target = send_mail)
-								email_thread.daemon = True
-								email_thread.start()
-								logger.info("Alert sent!")
 						to.counted = True
-						# compute the sum of total people inside
-						total = []
-						total.append(len(move_in) - len(move_out))
 
 			# store the trackable object in our dictionary
 			trackableObjects[objectID] = to

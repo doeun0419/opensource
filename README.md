@@ -97,12 +97,12 @@ The following features can be easily enabled/disabled in ```utils/config.json```
 
 ```json
 {
-    "Email_Send": "",
-    "Email_Receive": "",
-    "Email_Password": "",
     "url": "",
     "ALERT": false,
     "Threshold": 10,
+    "Web_Update": false,
+    "Web_Update_URL": "",
+    "Web_Update_Timeout": 2,
     "Thread": false,
     "Log": false,
     "Scheduler": false,
@@ -110,26 +110,29 @@ The following features can be easily enabled/disabled in ```utils/config.json```
 }
 ```
 
+### Web count updates
+
+Set `"Web_Update": true` and put your teammate's API endpoint in `"Web_Update_URL"` to send a POST request whenever a person is counted entering or exiting.
+
+Example payload:
+
+```json
+{
+    "event": "enter",
+    "total_enter": 3,
+    "total_exit": 1,
+    "current_inside": 2,
+    "timestamp": "2026-05-04 14:30"
+}
+```
+
 ### Real-Time alert
 
-If selected, we send an email alert in real-time. Example use case: If the total number of people (say 10 or 30) are exceeded in a store/building, we simply alert the staff. 
+If the total number of people exceeds the configured threshold, the monitoring window shows an on-screen alert.
 
 - You can set the max. people limit in config, e.g., ```"Threshold": 10```.
 - This is quite useful considering scenarios similar to COVID-19. Below is an example:
 <img src="https://imgur.com/35Yf1SR.png" width=350>
-
-> ***1. Setup your emails:***
-
-In the config, setup your sender email ```"Email_Send": ""``` to send the alerts and your receiver email ```"Email_Receive": ""``` to receive the alerts.
-
-> ***2. Setup your password:***
-
-Similarly, setup the sender email password ```"Email_Password": ""```.
-
-Note that the password varies if you have secured 2 step verification turned on, so refer the links below and create an application specific password:
-
-- Google mail has a guide here: https://myaccount.google.com/lesssecureapps
-- For 2 step verified accounts: https://support.google.com/accounts/answer/185833
 
 ### Threading
 
