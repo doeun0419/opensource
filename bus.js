@@ -8,6 +8,50 @@ function showMain() {
     document.getElementById("main-page").style.display = "block";
 }
 
+const max = 50;
+const countStateUrl = "utils/data/count_state.json";
+
+function updateDashboard(count) {
+    let safeCount = Math.max(0, Number(count) || 0);
+    let percent = (safeCount / max) * 100;
+    let bar = document.getElementById("bar");
+    let status = "여유";
+    let color = "green";
+
+    if (percent >= 60) {
+        status = "혼잡";
+        color = "orange";
+    }
+    if (percent >= 100) {
+        status = "위험";
+        color = "red";
+    }
+
+    document.getElementById("count").innerText = safeCount + "명";
+    document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+    document.getElementById("status").innerText = status;
+    bar.style.width = Math.min(percent, 100) + "%";
+    bar.style.background = color;
+}
+
+async function loadCountState() {
+    try {
+        const response = await fetch(countStateUrl + "?t=" + Date.now());
+        if (!response.ok) {
+            return;
+        }
+
+        const data = await response.json();
+        updateDashboard(data.current_inside);
+    } catch (error) {
+        updateDashboard(0);
+    }
+}
+
+updateDashboard(0);
+loadCountState();
+setInterval(loadCountState, 1000);
+
 // 알림 권한 요청
 function requestPermission() {
     if (Notification.permission !== "granted") {
@@ -72,4 +116,3 @@ function showNotification(time) {
         alert(time + " 버스 15분 전입니다!");
     }
 }
-

@@ -128,54 +128,6 @@
     </div>
 </div>
 
-<script>
-    let count = 23;
-    let max = 50;
-
-    let percent = (count / max) * 100;
-
-    document.getElementById("count").innerText = count + "명";
-    document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-
-    let bar = document.getElementById("bar");
-    bar.style.width = percent + "%";
-
-    let status = "여유";
-    let color = "green";
-
-    if (percent >= 60) {
-        status = "혼잡";
-        color = "orange";
-    }
-    if (percent >= 100) {
-        status = "위험";
-        color = "red";
-    }
-
-    document.getElementById("status").innerText = status;
-    bar.style.background = color;
-
-    // 시간 클릭 이벤트
-    let selectedTime = "";
-
-    document.querySelectorAll(".time").forEach(el => {
-        el.addEventListener("click", () => {
-            selectedTime = el.innerText;
-            document.getElementById("popup-text").innerText =
-                selectedTime + " 버스\n15분 전 알림을 설정하시겠습니까?";
-            document.getElementById("popup").style.display = "flex";
-        });
-    });
-
-    function closePopup() {
-        document.getElementById("popup").style.display = "none";
-    }
-
-    function setAlarm() {
-        alert(selectedTime + " 알림이 설정되었습니다!");
-        closePopup();
-    }
-</script>
 <script src="bus.js"></script>
 </body>
 </html>

@@ -16,6 +16,7 @@ import dlib
 import json
 import csv
 import cv2
+import os
 import urllib.error
 import urllib.request
 
@@ -27,6 +28,8 @@ logger = logging.getLogger(__name__)
 # initiate features config.
 with open("utils/config.json", "r") as file:
     config = json.load(file)
+
+COUNT_STATE_PATH = "utils/data/count_state.json"
 
 def parse_arguments():
 	# function to parse the arguments
@@ -58,6 +61,19 @@ def log_data(move_in, in_time, move_out, out_time):
 		if myfile.tell() == 0: # check if header rows are already existing
 			wr.writerow(("Move In", "In Time", "Move Out", "Out Time"))
 			wr.writerows(export_data)
+
+def write_count_state(event, total_enter, total_exit, current_inside, timestamp):
+	# write the latest count so the static web page can poll it without a backend
+	payload = {
+		"event": event,
+		"total_enter": total_enter,
+		"total_exit": total_exit,
+		"current_inside": current_inside,
+		"timestamp": timestamp,
+	}
+	os.makedirs(os.path.dirname(COUNT_STATE_PATH), exist_ok=True)
+	with open(COUNT_STATE_PATH, "w") as file:
+		json.dump(payload, file)
 
 def post_count_update(event, total_enter, total_exit, current_inside, timestamp):
 	# function to post counting events to a web service
@@ -153,6 +169,7 @@ def people_counter():
 	move_in =[]
 	out_time = []
 	in_time = []
+	write_count_state("init", totalDown, totalUp, 0, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 	# start the frames per second throughput estimator
 	fps = FPS().start()
@@ -307,6 +324,7 @@ def people_counter():
 						out_time.append(date_time)
 						current_inside = len(move_in) - len(move_out)
 						total = [current_inside]
+						write_count_state("exit", totalDown, totalUp, current_inside, date_time)
 						send_count_update("exit", totalDown, totalUp, current_inside, date_time)
 						to.counted = True
 
@@ -321,6 +339,7 @@ def people_counter():
 						# compute the sum of total people inside
 						current_inside = len(move_in) - len(move_out)
 						total = [current_inside]
+						write_count_state("enter", totalDown, totalUp, current_inside, date_time)
 						send_count_update("enter", totalDown, totalUp, current_inside, date_time)
 						# if the people limit exceeds over threshold, show an on-screen alert
 						if sum(total) >= config["Threshold"]:
