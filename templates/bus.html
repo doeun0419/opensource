@@ -3,179 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <title>셔틀버스 대기 시스템</title>
-    <link rel="stylesheet" href="bus.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bus.css') }}">
 </head>
-
 <body>
-    <!-- 기존 wrapper 위에 추가 -->
 <div class="top-bar">
     <button class="camera-btn" onclick="showCamera()">📷 카메라로 확인하기</button>
 </div>
 
-<!-- 기존 전체 감싸기 -->
-<div id="main-page">
-
-    <!-- (기존 코드 그대로 유지) -->
-    <!-- wrapper 전체 그대로 여기 안에 넣으면 됨 -->
-
-</div>
-
-<!-- 카메라 화면 -->
-<div id="camera-page" class="hidden">
-    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
-
-    <div class="camera-box">
-        <p>📷 카메라 화면 (준비 중)</p>
-        <p>여기에 실시간 영상이 표시됩니다</p>
-    </div>
-</div>
-
-<div class="wrapper">
-
+<div id="main-page" class="wrapper">
     <h1>🚌 셔틀버스 대기 시스템</h1>
-
-    <!-- 카드 -->
     <div class="cards">
-
         <div class="card highlight">
             <p>혼잡도</p>
             <div class="value big" id="percent">0%</div>
-            <div class="bar">
-                <div class="bar-fill" id="bar"></div>
-            </div>
+            <div class="bar"><div class="bar-fill" id="bar"></div></div>
         </div>
-
         <div class="card">
             <p>현재 대기 인원</p>
             <div class="value" id="count">0명</div>
         </div>
-
         <div class="card">
             <p>상태</p>
             <div class="value" id="status">여유</div>
         </div>
-
     </div>
-
     <div class="divider"></div>
-
-    <!-- 시간표 -->
     <div class="schedule">
         <h2>📍 셔틀버스 시간표</h2>
-
         <table>
-            <thead>
-                <tr>
-                    <th>요일</th>
-                    <th>운행 시간</th>
-                </tr>
-            </thead>
-
+            <thead><tr><th>요일</th><th>운행 시간</th></tr></thead>
             <tbody>
-                <tr>
-                    <td>월 ~ 목</td>
-                    <td class="times">
-                        <span class="time">12:00</span>
-                        <span class="time">12:25</span>
-                        <span class="time">12:50</span>
-                        <span class="time">13:15</span>
-                        <span class="time">13:40</span>
-                        <span class="time">14:05</span>
-                        <span class="time">14:30</span>
-                        <span class="time">15:00</span>
-                        <span class="time">15:20</span>
-                        <span class="time">15:40</span>
-                        <span class="time">16:00</span>
-                        <span class="time">16:20</span>
-                        <span class="time">16:40</span>
-                        <span class="time">17:00</span>
-                        <span class="time">17:20</span>
-                        <span class="time">17:40</span>
-                        <span class="time">18:00</span>
-                        <span class="time">18:15</span>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>금요일</td>
-                    <td class="times">
-                        <span class="time">12:00</span>
-                        <span class="time">12:25</span>
-                        <span class="time">12:50</span>
-                        <span class="time">13:15</span>
-                        <span class="time">13:40</span>
-                        <span class="time">14:05</span>
-                        <span class="time">14:30</span>
-                        <span class="time">15:00</span>
-                        <span class="time">15:20</span>
-                        <span class="time">15:30</span>
-                    </td>
-                </tr>
+                <tr><td>월 ~ 목</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span> <span class="time">13:15</span> <span class="time">13:40</span></td></tr>
+                <tr><td>금요일</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span></td></tr>
             </tbody>
         </table>
-
         <p class="route">※ 노선: 화랑대역 · 태릉입구역 · 석계역</p>
     </div>
-
 </div>
 
-<!-- 팝업 -->
-<div class="popup" id="popup">
+<div id="camera-page" class="hidden" style="display:none; text-align:center; padding:20px;">
+    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
+    <div class="camera-box" style="margin-top:20px; border:2px solid #ccc; padding:50px;">
+        <p>📷 실시간 분석 중...</p>
+        <p>(서버에서 계산된 데이터가 메인 화면에 반영됩니다)</p>
+    </div>
+</div>
+
+<div class="popup" id="popup" style="display:none;">
     <div class="popup-box">
-        <p id="popup-text">15분 전 알림을 설정하시겠습니까?</p>
+        <p id="popup-text"></p>
         <button onclick="setAlarm()">예</button>
         <button onclick="closePopup()">아니요</button>
     </div>
 </div>
 
 <script>
-    let count = 23;
-    let max = 50;
-
-    let percent = (count / max) * 100;
-
-    document.getElementById("count").innerText = count + "명";
-    document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-
-    let bar = document.getElementById("bar");
-    bar.style.width = percent + "%";
-
-    let status = "여유";
-    let color = "green";
-
-    if (percent >= 60) {
-        status = "혼잡";
-        color = "orange";
+    function updateDashboard() {
+        fetch('/data')
+            .then(res => res.json())
+            .then(data => {
+                const count = data.current_inside;
+                document.getElementById("count").innerText = count + "명";
+                let percent = Math.min((count / 50) * 100, 100);
+                document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+                let bar = document.getElementById("bar");
+                bar.style.width = percent + "%";
+                
+                let statusText = "여유", color = "#4caf50";
+                if (percent >= 60) { statusText = "혼잡"; color = "#ff9800"; }
+                if (percent >= 90) { statusText = "위험"; color = "#f44336"; }
+                document.getElementById("status").innerText = statusText;
+                bar.style.background = color;
+            });
     }
-    if (percent >= 100) {
-        status = "위험";
-        color = "red";
-    }
+    setInterval(updateDashboard, 1000);
 
-    document.getElementById("status").innerText = status;
-    bar.style.background = color;
-
-    // 시간 클릭 이벤트
+    function showCamera() { document.getElementById("main-page").style.display="none"; document.getElementById("camera-page").style.display="block"; }
+    function showMain() { document.getElementById("main-page").style.display="block"; document.getElementById("camera-page").style.display="none"; }
+    
     let selectedTime = "";
-
     document.querySelectorAll(".time").forEach(el => {
         el.addEventListener("click", () => {
             selectedTime = el.innerText;
-            document.getElementById("popup-text").innerText =
-                selectedTime + " 버스\n15분 전 알림을 설정하시겠습니까?";
+            document.getElementById("popup-text").innerText = selectedTime + " 버스 15분 전 알림을 설정할까요?";
             document.getElementById("popup").style.display = "flex";
         });
     });
-
-    function closePopup() {
-        document.getElementById("popup").style.display = "none";
-    }
-
-    function setAlarm() {
-        alert(selectedTime + " 알림이 설정되었습니다!");
-        closePopup();
-    }
+    function closePopup() { document.getElementById("popup").style.display = "none"; }
+    function setAlarm() { alert(selectedTime + " 알림 설정 완료!"); closePopup(); }
 </script>
-<script src="bus.js"></script>
 </body>
 </html>
