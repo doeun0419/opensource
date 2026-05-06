@@ -3,94 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <title>셔틀버스 대기 시스템</title>
-    <!-- static 폴더의 bus.css 연결 -->
+    <!-- Flask 문법으로 CSS 연결 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bus.css') }}">
 </head>
-<body>
-<div class="top-bar">
-    <button class="camera-btn" onclick="showCamera()">📷 카메라로 확인하기</button>
-</div>
 
-<div id="main-page" class="wrapper">
+<body>
+
+<div class="wrapper">
+
     <h1>🚌 셔틀버스 대기 시스템</h1>
+
+    <!-- 카드 -->
     <div class="cards">
+
         <div class="card highlight">
             <p>혼잡도</p>
             <div class="value big" id="percent">0%</div>
-            <!-- ID를 bar-fill로 맞춰서 JS랑 연동되게 함 -->
-            <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+            <div class="bar">
+                <!-- 실시간 업데이트를 위해 id를 'bar-fill'로 지정 (CSS와 일치 확인) -->
+                <div class="bar-fill" id="bar-fill" style="width: 0%;"></div>
+            </div>
         </div>
+
         <div class="card">
             <p>현재 대기 인원</p>
             <div class="value" id="count">0명</div>
         </div>
+
         <div class="card">
             <p>상태</p>
             <div class="value" id="status">여유</div>
         </div>
+
     </div>
+
     <div class="divider"></div>
+
+    <!-- 시간표 (원문 유지) -->
     <div class="schedule">
         <h2>📍 셔틀버스 시간표</h2>
+
         <table>
-            <thead><tr><th>요일</th><th>운행 시간</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>요일</th>
+                    <th>운행 시간</th>
+                </tr>
+            </thead>
+
             <tbody>
-                <tr><td>월 ~ 목</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span> <span class="time">13:15</span> <span class="time">13:40</span></td></tr>
-                <tr><td>금요일</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span></td></tr>
+                <tr>
+                    <td>월 ~ 목</td>
+                    <td class="times">
+                        <span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span>
+                        <span class="time">13:15</span> <span class="time">13:40</span> <span class="time">14:05</span>
+                        <span class="time">14:30</span> <span class="time">15:00</span> <span class="time">15:20</span>
+                        <span class="time">15:40</span> <span class="time">16:00</span> <span class="time">16:20</span>
+                        <span class="time">16:40</span> <span class="time">17:00</span> <span class="time">17:20</span>
+                        <span class="time">17:40</span> <span class="time">18:00</span> <span class="time">18:15</span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>금요일</td>
+                    <td class="times">
+                        <span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span>
+                        <span class="time">13:15</span> <span class="time">13:40</span> <span class="time">14:05</span>
+                        <span class="time">14:30</span> <span class="time">15:00</span> <span class="time">15:20</span>
+                        <span class="time">15:30</span>
+                    </td>
+                </tr>
             </tbody>
         </table>
+
         <p class="route">※ 노선: 화랑대역 · 태릉입구역 · 석계역</p>
     </div>
+
 </div>
 
-<div id="camera-page" class="hidden" style="display:none; text-align:center; padding:20px;">
-    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
-    <div class="camera-box" style="margin: 20px auto; border:2px solid #ccc; padding:50px; width: 80%; background: #000; color: #fff;">
-        <p>📷 실시간 분석 중...</p>
-        <p>(서버에서 계산된 데이터가 메인 화면에 반영됩니다)</p>
-    </div>
-</div>
-
+<!-- 팝업 -->
 <div class="popup" id="popup" style="display:none;">
     <div class="popup-box">
-        <p id="popup-text"></p>
+        <p id="popup-text">15분 전 알림을 설정하시겠습니까?</p>
         <button onclick="setAlarm()">예</button>
         <button onclick="closePopup()">아니요</button>
     </div>
 </div>
 
-<!-- static 폴더의 bus.js 연결 -->
-<script src="{{ url_for('static', filename='bus.js') }}"></script>
-
-<!-- 실시간 데이터 업데이트 스크립트 -->
+<!-- 실시간 데이터 업데이트 및 이벤트 스크립트 -->
 <script>
+    // 1. 서버 데이터 실시간 연동 함수
     function updateDashboard() {
         fetch('/data')
             .then(res => res.json())
             .then(data => {
                 const count = data.current_inside;
+                const max = 50;
+                let percent = (count / max) * 100;
+                if (percent > 100) percent = 100;
+
+                // 화면 텍스트 업데이트
                 document.getElementById("count").innerText = count + "명";
-                
-                let percent = Math.min((count / 50) * 100, 100);
                 document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-                
-                // HTML의 ID인 bar-fill을 찾아서 게이지 조절
+
+                // 게이지 바 업데이트
                 let bar = document.getElementById("bar-fill");
-                if(bar) {
+                if (bar) {
                     bar.style.width = percent + "%";
                     
-                    let statusText = "여유", color = "#4caf50";
-                    if (percent >= 60) { statusText = "혼잡"; color = "#ff9800"; }
-                    if (percent >= 90) { statusText = "위험"; color = "#f44336"; }
-                    
+                    // 상태 및 색상 로직
+                    let statusText = "여유";
+                    let color = "#4caf50"; // green
+
+                    if (percent >= 60) {
+                        statusText = "혼잡";
+                        color = "#ff9800"; // orange
+                    }
+                    if (percent >= 90) { // 90% 이상을 위험으로 설정
+                        statusText = "위험";
+                        color = "#f44336"; // red
+                    }
+
                     document.getElementById("status").innerText = statusText;
                     bar.style.background = color;
                 }
             })
-            .catch(err => console.error("데이터 로드 실패:", err));
+            .catch(err => console.error("데이터 업데이트 실패:", err));
     }
-    // 1초마다 업데이트
+
+    // 1초마다 데이터 갱신
     setInterval(updateDashboard, 1000);
+
+    // 2. 알림 및 팝업 이벤트 (원문 로직 유지)
+    let selectedTime = "";
+
+    document.querySelectorAll(".time").forEach(el => {
+        el.addEventListener("click", () => {
+            selectedTime = el.innerText;
+            document.getElementById("popup-text").innerText =
+                selectedTime + " 버스\n15분 전 알림을 설정하시겠습니까?";
+            document.getElementById("popup").style.display = "flex";
+        });
+    });
+
+    function closePopup() {
+        document.getElementById("popup").style.display = "none";
+    }
+
+    function setAlarm() {
+        alert(selectedTime + " 알림이 설정되었습니다!");
+        closePopup();
+    }
 </script>
+
 </body>
 </html>
