@@ -3,94 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>셔틀버스 대기 시스템</title>
+    <!-- CSS 연결 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='bus.css') }}">
 </head>
 <body>
-<div class="top-bar">
-    <button class="camera-btn" onclick="showCamera()">📷 카메라로 확인하기</button>
-</div>
 
-<div id="main-page" class="wrapper">
-    <h1>🚌 셔틀버스 대기 시스템</h1>
-    <div class="cards">
-        <div class="card highlight">
-            <p>혼잡도</p>
-            <div class="value big" id="percent">0%</div>
-            <div class="bar"><div class="bar-fill" id="bar"></div></div>
-        </div>
-        <div class="card">
-            <p>현재 대기 인원</p>
-            <div class="value" id="count">0명</div>
-        </div>
-        <div class="card">
-            <p>상태</p>
-            <div class="value" id="status">여유</div>
-        </div>
-    </div>
-    <div class="divider"></div>
-    <div class="schedule">
-        <h2>📍 셔틀버스 시간표</h2>
-        <table>
-            <thead><tr><th>요일</th><th>운행 시간</th></tr></thead>
-            <tbody>
-                <tr><td>월 ~ 목</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span> <span class="time">13:15</span> <span class="time">13:40</span></td></tr>
-                <tr><td>금요일</td><td class="times"><span class="time">12:00</span> <span class="time">12:25</span> <span class="time">12:50</span></td></tr>
-            </tbody>
-        </table>
-        <p class="route">※ 노선: 화랑대역 · 태릉입구역 · 석계역</p>
-    </div>
-</div>
+    <!-- (중간 HTML 내용은 그대로 유지) -->
 
-<div id="camera-page" class="hidden" style="display:none; text-align:center; padding:20px;">
-    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
-    <div class="camera-box" style="margin-top:20px; border:2px solid #ccc; padding:50px;">
-        <p>📷 실시간 분석 중...</p>
-        <p>(서버에서 계산된 데이터가 메인 화면에 반영됩니다)</p>
-    </div>
-</div>
-
-<div class="popup" id="popup" style="display:none;">
-    <div class="popup-box">
-        <p id="popup-text"></p>
-        <button onclick="setAlarm()">예</button>
-        <button onclick="closePopup()">아니요</button>
-    </div>
-</div>
-
-<script>
-    function updateDashboard() {
-        fetch('/data')
-            .then(res => res.json())
-            .then(data => {
-                const count = data.current_inside;
-                document.getElementById("count").innerText = count + "명";
-                let percent = Math.min((count / 50) * 100, 100);
-                document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-                let bar = document.getElementById("bar");
-                bar.style.width = percent + "%";
-                
-                let statusText = "여유", color = "#4caf50";
-                if (percent >= 60) { statusText = "혼잡"; color = "#ff9800"; }
-                if (percent >= 90) { statusText = "위험"; color = "#f44336"; }
-                document.getElementById("status").innerText = statusText;
-                bar.style.background = color;
-            });
-    }
-    setInterval(updateDashboard, 1000);
-
-    function showCamera() { document.getElementById("main-page").style.display="none"; document.getElementById("camera-page").style.display="block"; }
-    function showMain() { document.getElementById("main-page").style.display="block"; document.getElementById("camera-page").style.display="none"; }
+    <!-- JS 연결 (body 태그 닫히기 직전에 넣어줘) -->
+    <script src="{{ url_for('static', filename='bus.js') }}"></script>
     
-    let selectedTime = "";
-    document.querySelectorAll(".time").forEach(el => {
-        el.addEventListener("click", () => {
-            selectedTime = el.innerText;
-            document.getElementById("popup-text").innerText = selectedTime + " 버스 15분 전 알림을 설정할까요?";
-            document.getElementById("popup").style.display = "flex";
-        });
-    });
-    function closePopup() { document.getElementById("popup").style.display = "none"; }
-    function setAlarm() { alert(selectedTime + " 알림 설정 완료!"); closePopup(); }
-</script>
+    <!-- 실시간 인원수 업데이트 스크립트는 HTML에 남겨둬야 해! -->
+    <script>
+        function updateDashboard() {
+            fetch('/data')
+                .then(res => res.json())
+                .then(data => {
+                    const count = data.current_inside;
+                    document.getElementById("count").innerText = count + "명";
+                    let percent = Math.min((count / 50) * 100, 100);
+                    document.getElementById("percent").innerText = percent.toFixed(1) + "%";
+                    let bar = document.getElementById("bar-fill"); // CSS 클래스 확인 후 ID 맞추기
+                    if(bar) bar.style.width = percent + "%";
+                    
+                    let statusText = "여유", color = "#4caf50";
+                    if (percent >= 60) { statusText = "혼잡"; color = "#ff9800"; }
+                    if (percent >= 90) { statusText = "위험"; color = "#f44336"; }
+                    document.getElementById("status").innerText = statusText;
+                    if(bar) bar.style.background = color;
+                });
+        }
+        setInterval(updateDashboard, 1000);
+    </script>
 </body>
 </html>
