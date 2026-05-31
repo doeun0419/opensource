@@ -2,132 +2,186 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>셔틀버스 대기 시스템</title>
     <link rel="stylesheet" href="bus.css">
 </head>
-
 <body>
-    <!-- 기존 wrapper 위에 추가 -->
-<div class="top-bar">
-    <button class="camera-btn" onclick="showCamera()">📷 카메라로 확인하기</button>
-</div>
+    <main class="app-shell">
+        <header class="top-nav">
+            <a class="brand" href="#home-panel" data-view-link="home">
+                <strong>SAHMYOOK Shuttle</strong>
+            </a>
 
-<!-- 기존 전체 감싸기 -->
-<div id="main-page">
+            <nav class="nav-tabs" aria-label="상단 메뉴">
+                <button class="nav-tab active" type="button" data-view="home">홈</button>
+                <button class="nav-tab" type="button" data-view="camera">카메라</button>
+            </nav>
+        </header>
 
-    <!-- (기존 코드 그대로 유지) -->
-    <!-- wrapper 전체 그대로 여기 안에 넣으면 됨 -->
+        <section class="view-panel active" id="home-panel" data-panel="home" aria-labelledby="overview-title">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">Live Status</p>
+                    <h1 id="overview-title">셔틀버스 대기 현황</h1>
+                </div>
+                <p class="route">화랑대역 · 태릉입구역 · 석계역</p>
+            </div>
 
-<div class="wrapper">
+            <div class="status-layout">
+                <article class="metric-card primary">
+                    <div class="metric-label">
+                        <span>혼잡도</span>
+                        <strong id="status">여유</strong>
+                    </div>
+                    <div class="percent-row">
+                        <span class="percent-value" id="percent">0%</span>
+                        <div class="status-details" aria-label="대기 인원 상세">
+                            <span class="waiting-line">현재 대기 <strong id="count">0명</strong> <em id="capacity-text">정원 60명</em></span>
+                        </div>
+                    </div>
+                    <div class="bar" aria-hidden="true">
+                        <div class="bar-fill" id="bar"></div>
+                    </div>
+                </article>
+            </div>
 
-    <h1>🚌 셔틀버스 대기 시스템</h1>
+            <section class="schedule-section" aria-labelledby="schedule-title">
+                <div>
+                    <p class="eyebrow">Timetable</p>
+                    <h2 id="schedule-title">셔틀버스 시간표</h2>
+                </div>
+                <p class="route">시간을 누르면 출발 알림을 설정합니다.</p>
 
-    <!-- 카드 -->
-    <div class="cards">
+                <div class="schedule-grid">
+                    <article class="schedule-group">
+                        <h3>월요일 ~ 목요일</h3>
+                        <div class="time-rows" aria-label="월요일부터 목요일 운행 시간">
+                            <div class="time-row">
+                                <span class="hour-label">12시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">12:00</button>
+                                    <button class="time" type="button">12:25</button>
+                                    <button class="time" type="button">12:50</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">13시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">13:15</button>
+                                    <button class="time" type="button">13:40</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">14시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">14:05</button>
+                                    <button class="time" type="button">14:30</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">15시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">15:00</button>
+                                    <button class="time" type="button">15:20</button>
+                                    <button class="time" type="button">15:40</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">16시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">16:00</button>
+                                    <button class="time" type="button">16:20</button>
+                                    <button class="time" type="button">16:40</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">17시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">17:00</button>
+                                    <button class="time" type="button">17:20</button>
+                                    <button class="time" type="button">17:40</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">18시</span>
+                                <div class="time-list">
+                                    <button class="time" type="button">18:00</button>
+                                    <button class="time" type="button">18:15</button>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
 
-        <div class="card highlight">
-            <p>혼잡도</p>
-            <div class="value big" id="percent">0%</div>
-            <div class="bar">
-                <div class="bar-fill" id="bar"></div>
+                    <article class="schedule-group accent">
+                        <h3>금요일</h3>
+                        <div class="time-rows" aria-label="금요일 운행 시간">
+                            <div class="time-row">
+                                <span class="hour-label">12시</span>
+                                <div class="time-list compact">
+                                    <button class="time" type="button">12:00</button>
+                                    <button class="time" type="button">12:25</button>
+                                    <button class="time" type="button">12:50</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">13시</span>
+                                <div class="time-list compact">
+                                    <button class="time" type="button">13:15</button>
+                                    <button class="time" type="button">13:40</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">14시</span>
+                                <div class="time-list compact">
+                                    <button class="time" type="button">14:05</button>
+                                    <button class="time" type="button">14:30</button>
+                                </div>
+                            </div>
+                            <div class="time-row">
+                                <span class="hour-label">15시</span>
+                                <div class="time-list compact">
+                                    <button class="time" type="button">15:00</button>
+                                    <button class="time" type="button">15:20</button>
+                                    <button class="time" type="button">15:30</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="schedule-note">금요일은 15시 30분까지 운행합니다.</p>
+                    </article>
+                </div>
+            </section>
+        </section>
+
+        <section class="view-panel" id="camera-panel" data-panel="camera" aria-labelledby="camera-title">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">Live Monitor</p>
+                    <h1 id="camera-title">실시간 카메라</h1>
+                </div>
+                <p class="route">실행화면</p>
+            </div>
+
+            <div class="camera-box">
+                <p id="monitor-message">카메라화면을 기다리는 중입니다.</p>
+                <img id="monitor-frame" src="" alt="카메라화면">
+            </div>
+        </section>
+    </main>
+
+    <div class="popup" id="popup" role="dialog" aria-modal="true" aria-labelledby="popup-title">
+        <div class="popup-box">
+            <p class="eyebrow">Departure Alert</p>
+            <h2 id="popup-title">알림 설정</h2>
+            <p id="popup-text">15분 전 알림을 설정하시겠습니까?</p>
+            <p class="reservation-count" id="reservation-count">현재 예약 0명</p>
+            <div class="popup-actions">
+                <button class="secondary-btn" id="cancel-alarm-btn" type="button">취소</button>
+                <button class="primary-btn" id="set-alarm-btn" type="button">설정</button>
             </div>
         </div>
-
-        <div class="card">
-            <p>현재 대기 인원</p>
-            <div class="value" id="count">0명</div>
-        </div>
-
-        <div class="card">
-            <p>상태</p>
-            <div class="value" id="status">여유</div>
-        </div>
-
     </div>
 
-    <div class="divider"></div>
-
-    <!-- 시간표 -->
-    <div class="schedule">
-        <h2>📍 셔틀버스 시간표</h2>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>요일</th>
-                    <th>운행 시간</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                <tr>
-                    <td>월 ~ 목</td>
-                    <td class="times">
-                        <span class="time">12:00</span>
-                        <span class="time">12:25</span>
-                        <span class="time">12:50</span>
-                        <span class="time">13:15</span>
-                        <span class="time">13:40</span>
-                        <span class="time">14:05</span>
-                        <span class="time">14:30</span>
-                        <span class="time">15:00</span>
-                        <span class="time">15:20</span>
-                        <span class="time">15:40</span>
-                        <span class="time">16:00</span>
-                        <span class="time">16:20</span>
-                        <span class="time">16:40</span>
-                        <span class="time">17:00</span>
-                        <span class="time">17:20</span>
-                        <span class="time">17:40</span>
-                        <span class="time">18:00</span>
-                        <span class="time">18:15</span>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td>금요일</td>
-                    <td class="times">
-                        <span class="time">12:00</span>
-                        <span class="time">12:25</span>
-                        <span class="time">12:50</span>
-                        <span class="time">13:15</span>
-                        <span class="time">13:40</span>
-                        <span class="time">14:05</span>
-                        <span class="time">14:30</span>
-                        <span class="time">15:00</span>
-                        <span class="time">15:20</span>
-                        <span class="time">15:30</span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <p class="route">※ 노선: 화랑대역 · 태릉입구역 · 석계역</p>
-    </div>
-
-</div>
-
-</div>
-
-<!-- 카메라 화면 -->
-<div id="camera-page" class="hidden">
-    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
-
-    <div class="camera-box">
-        <p id="monitor-message">Python 실행 화면을 기다리는 중입니다.</p>
-        <img id="monitor-frame" src="" alt="Python 실행 화면" onerror="showMonitorMessage()">
-    </div>
-</div>
-
-<!-- 팝업 -->
-<div class="popup" id="popup">
-    <div class="popup-box">
-        <p id="popup-text">15분 전 알림을 설정하시겠습니까?</p>
-        <button onclick="setAlarm()">예</button>
-        <button onclick="closePopup()">아니요</button>
-    </div>
-</div>
-
-<script src="bus.js"></script>
+    <script src="bus.js"></script>
 </body>
 </html>

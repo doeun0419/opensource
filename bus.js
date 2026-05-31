@@ -1,148 +1,246 @@
-const monitorStreamUrl = "/video_feed";
+const MONITOR_STREAM_URL = "/video_feed";
+const COUNT_STATE_URL = "utils/data/count_state.json";
+const MAX_WAITING_COUNT = 60;
+const DEFAULT_WAITING_COUNT = 30;
+const RESERVATION_STORAGE_KEY = "shuttleReservationCounts";
 
-function showCamera() {
-    document.getElementById("main-page").style.display = "none";
-    document.getElementById("camera-page").style.display = "block";
+const elements = {
+    brandLink: document.querySelector("[data-view-link]"),
+    navTabs: document.querySelectorAll("[data-view]"),
+    panels: document.querySelectorAll("[data-panel]"),
+    monitorFrame: document.getElementById("monitor-frame"),
+    monitorMessage: document.getElementById("monitor-message"),
+    bar: document.getElementById("bar"),
+    count: document.getElementById("count"),
+    percent: document.getElementById("percent"),
+    capacityText: document.getElementById("capacity-text"),
+    status: document.getElementById("status"),
+    connectionStatus: document.getElementById("connection-status"),
+    lastUpdated: document.getElementById("last-updated"),
+    popup: document.getElementById("popup"),
+    popupText: document.getElementById("popup-text"),
+    reservationCount: document.getElementById("reservation-count"),
+    setAlarmButton: document.getElementById("set-alarm-btn"),
+    cancelAlarmButton: document.getElementById("cancel-alarm-btn"),
+};
 
-    const frame = document.getElementById("monitor-frame");
-    const message = document.getElementById("monitor-message");
+let selectedTime = "";
 
-    if (message) {
-        message.style.display = "block";
-        message.innerText = "people_counter.py 실행 화면을 기다리는 중입니다.";
-    }
-    if (frame) {
-        frame.style.display = "block";
-        if (message) {
-            message.style.display = "none";
-        }
-        frame.src = monitorStreamUrl + "?t=" + Date.now();
+function getReservationCounts() {
+    try {
+        return JSON.parse(localStorage.getItem(RESERVATION_STORAGE_KEY)) || {};
+    } catch (error) {
+        return {};
     }
 }
 
-function showMain() {
-    document.getElementById("camera-page").style.display = "none";
-    document.getElementById("main-page").style.display = "block";
+function getReservationCount(time) {
+    const counts = getReservationCounts();
+    return Number(counts[time]) || 0;
 }
 
-function showMonitorMessage() {
-    const frame = document.getElementById("monitor-frame");
-    const message = document.getElementById("monitor-message");
+function updateReservationCount(time) {
+    const count = getReservationCount(time);
+    elements.reservationCount.textContent = `현재 예약 ${count}명`;
+}
 
-    if (!frame || !message) {
+function addReservation(time) {
+    const counts = getReservationCounts();
+    counts[time] = getReservationCount(time) + 1;
+    localStorage.setItem(RESERVATION_STORAGE_KEY, JSON.stringify(counts));
+    updateReservationCount(time);
+}
+
+function setConnectionState(label, detail) {
+    if (!elements.connectionStatus || !elements.lastUpdated) {
         return;
     }
 
-    frame.style.display = "none";
-    message.style.display = "block";
-    message.innerText = "people_counter.py를 실행하면 여기에 화면이 표시됩니다.";
+    elements.connectionStatus.textContent = label;
+    elements.lastUpdated.textContent = detail;
 }
 
-const max = 50;
-const countStateUrl = "utils/data/count_state.json";
+function formatUpdatedTime(date) {
+    return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}:${date.getSeconds().toString().padStart(2, "0")} 업데이트`;
+}
 
-function updateDashboard(count) {
-    let safeCount = Math.max(0, Number(count) || 0);
-    let percent = (safeCount / max) * 100;
-    let bar = document.getElementById("bar");
-    let status = "여유";
-    let color = "green";
+function getStatus(percent) {
+    if (percent >= 100) {
+        return { label: "위험", color: "#002C77", className: "danger" };
+    }
 
     if (percent >= 60) {
-        status = "혼잡";
-        color = "orange";
-    }
-    if (percent >= 100) {
-        status = "위험";
-        color = "red";
+        return { label: "혼잡", color: "#002C77", className: "warning" };
     }
 
-    document.getElementById("count").innerText = safeCount + "명";
-    document.getElementById("percent").innerText = percent.toFixed(1) + "%";
-    document.getElementById("status").innerText = status;
-    bar.style.width = Math.min(percent, 100) + "%";
-    bar.style.background = color;
+    return { label: "여유", color: "#00AFEC", className: "" };
+}
+
+function updateDashboard(count) {
+    const safeCount = Math.max(0, Number(count) || 0);
+    const percent = (safeCount / MAX_WAITING_COUNT) * 100;
+    const roundedPercent = Math.round(percent);
+    const status = getStatus(percent);
+
+    elements.count.textContent = `${safeCount}명`;
+    elements.percent.textContent = `${roundedPercent}%`;
+    elements.capacityText.textContent = `정원 ${MAX_WAITING_COUNT}명`;
+    elements.status.textContent = status.label;
+    elements.status.className = status.className;
+    elements.bar.style.width = `${Math.min(percent, 100)}%`;
+    elements.bar.style.background = status.color;
 }
 
 async function loadCountState() {
     try {
-        const response = await fetch(countStateUrl + "?t=" + Date.now());
+        const response = await fetch(`${COUNT_STATE_URL}?t=${Date.now()}`);
+
         if (!response.ok) {
+            setConnectionState("연결 대기", "데이터 파일 확인 중");
             return;
         }
 
         const data = await response.json();
         updateDashboard(data.current_inside);
+        setConnectionState("정상", formatUpdatedTime(new Date()));
     } catch (error) {
-        updateDashboard(0);
+        setConnectionState("오프라인", "Python 서버 또는 파일 확인 필요");
     }
 }
 
-updateDashboard(0);
-loadCountState();
-setInterval(loadCountState, 1000);
-
-// 알림 권한 요청
-function requestPermission() {
-    if (Notification.permission !== "granted") {
-        Notification.requestPermission();
-    }
+function startCamera() {
+    elements.monitorMessage.style.display = "block";
+    elements.monitorFrame.style.display = "none";
+    elements.monitorMessage.textContent = "카메라화면을 기다리는 중입니다.";
+    elements.monitorFrame.src = `${MONITOR_STREAM_URL}?t=${Date.now()}`;
 }
 
-// 페이지 처음 로드 시 실행
-requestPermission();
+function stopCamera() {
+    elements.monitorFrame.removeAttribute("src");
+    elements.monitorFrame.style.display = "none";
+    elements.monitorMessage.style.display = "block";
+}
 
-let selectedTime = "";
-
-// 시간 클릭 이벤트
-document.querySelectorAll(".time").forEach(el => {
-    el.addEventListener("click", () => {
-        selectedTime = el.innerText;
-        document.getElementById("popup-text").innerText =
-            selectedTime + " 버스\n15분 전 알림을 설정하시겠습니까?";
-        document.getElementById("popup").style.display = "flex";
+function setActiveView(view) {
+    elements.navTabs.forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.view === view);
     });
-});
+
+    elements.panels.forEach((panel) => {
+        panel.classList.toggle("active", panel.dataset.panel === view);
+    });
+
+    if (view === "camera") {
+        startCamera();
+    } else {
+        stopCamera();
+    }
+
+    window.scrollTo(0, 0);
+}
+
+function showMonitorMessage() {
+    elements.monitorFrame.style.display = "none";
+    elements.monitorMessage.style.display = "block";
+    elements.monitorMessage.textContent = "실행화면이 여기에 표시됩니다.";
+}
+
+function showMonitorFrame() {
+    elements.monitorMessage.style.display = "none";
+    elements.monitorFrame.style.display = "block";
+}
+
+function openPopup(time) {
+    selectedTime = time;
+    elements.popupText.textContent = `${selectedTime} 버스 출발 15분 전 알림을 설정하시겠습니까?`;
+    updateReservationCount(selectedTime);
+    elements.popup.style.display = "flex";
+}
 
 function closePopup() {
-    document.getElementById("popup").style.display = "none";
+    elements.popup.style.display = "none";
 }
 
-// 🔥 진짜 알림 설정
-function setAlarm() {
+async function ensureNotificationPermission() {
+    if (!("Notification" in window)) {
+        return "unsupported";
+    }
+
+    if (Notification.permission === "default") {
+        return Notification.requestPermission();
+    }
+
+    return Notification.permission;
+}
+
+async function setAlarm() {
     closePopup();
+    addReservation(selectedTime);
 
-    let now = new Date();
+    const permission = await ensureNotificationPermission();
+    const now = new Date();
+    const [hour, minute] = selectedTime.split(":").map(Number);
+    const target = new Date();
 
-    // 선택한 시간 파싱
-    let [hour, minute] = selectedTime.split(":").map(Number);
-
-    let target = new Date();
     target.setHours(hour);
-    target.setMinutes(minute - 15); // 15분 전
+    target.setMinutes(minute - 15);
     target.setSeconds(0);
+    target.setMilliseconds(0);
 
-    // 이미 지난 시간이면 다음 날로
     if (target < now) {
         target.setDate(target.getDate() + 1);
     }
 
-    let delay = target - now;
-
-    alert("알림이 설정되었습니다!");
-
-    setTimeout(() => {
+    window.setTimeout(() => {
         showNotification(selectedTime);
-    }, delay);
+    }, target - now);
+
+    if (permission === "denied") {
+        alert("브라우저 알림이 차단되어 있어 화면 알림으로 알려드릴게요.");
+        return;
+    }
+
+    alert("알림이 설정되었습니다.");
 }
 
-// 🔔 알림 표시
 function showNotification(time) {
-    if (Notification.permission === "granted") {
+    if ("Notification" in window && Notification.permission === "granted") {
         new Notification("셔틀버스 알림", {
-            body: time + " 버스 15분 전입니다!",
+            body: `${time} 버스 출발 15분 전입니다.`,
         });
-    } else {
-        alert(time + " 버스 15분 전입니다!");
+        return;
     }
+
+    alert(`${time} 버스 출발 15분 전입니다.`);
 }
+
+function bindEvents() {
+    elements.brandLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        setActiveView(elements.brandLink.dataset.viewLink);
+    });
+
+    elements.navTabs.forEach((tab) => {
+        tab.addEventListener("click", () => setActiveView(tab.dataset.view));
+    });
+
+    elements.monitorFrame.addEventListener("load", showMonitorFrame);
+    elements.monitorFrame.addEventListener("error", showMonitorMessage);
+    elements.cancelAlarmButton.addEventListener("click", closePopup);
+    elements.setAlarmButton.addEventListener("click", setAlarm);
+
+    document.querySelectorAll(".time").forEach((button) => {
+        button.addEventListener("click", () => openPopup(button.textContent));
+    });
+
+    elements.popup.addEventListener("click", (event) => {
+        if (event.target === elements.popup) {
+            closePopup();
+        }
+    });
+}
+
+bindEvents();
+updateDashboard(DEFAULT_WAITING_COUNT);
+loadCountState();
+window.setInterval(loadCountState, 1000);
