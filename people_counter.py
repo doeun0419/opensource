@@ -17,8 +17,12 @@ import json
 import csv
 import cv2
 import os
+import posixpath
+import socketserver
+from http.server import BaseHTTPRequestHandler
 import urllib.error
 import urllib.request
+from urllib.parse import unquote, urlparse
 
 # execution start time
 start_time = time.time()
@@ -30,6 +34,8 @@ with open("utils/config.json", "r") as file:
     config = json.load(file)
 
 COUNT_STATE_PATH = "utils/data/count_state.json"
+latest_web_frame = None
+latest_web_frame_lock = threading.Lock()
 
 def parse_arguments():
 	# function to parse the arguments
@@ -74,6 +80,102 @@ def write_count_state(event, total_enter, total_exit, current_inside, timestamp)
 	os.makedirs(os.path.dirname(COUNT_STATE_PATH), exist_ok=True)
 	with open(COUNT_STATE_PATH, "w") as file:
 		json.dump(payload, file)
+
+class StreamingServer(socketserver.ThreadingTCPServer):
+	allow_reuse_address = True
+
+class StreamingHandler(BaseHTTPRequestHandler):
+	def do_GET(self):
+		path = urlparse(self.path).path
+		if path == "/video_feed":
+			self.stream_video()
+			return
+
+		self.serve_static_file(path)
+
+	def stream_video(self):
+		self.send_response(200)
+		self.send_header("Age", "0")
+		self.send_header("Cache-Control", "no-cache, private")
+		self.send_header("Pragma", "no-cache")
+		self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+		self.end_headers()
+
+		while True:
+			with latest_web_frame_lock:
+				frame = latest_web_frame
+
+			if frame is None:
+				time.sleep(0.1)
+				continue
+
+			try:
+				self.wfile.write(b"--frame\r\n")
+				self.wfile.write(b"Content-Type: image/jpeg\r\n\r\n")
+				self.wfile.write(frame)
+				self.wfile.write(b"\r\n")
+				time.sleep(0.03)
+			except (BrokenPipeError, ConnectionResetError):
+				break
+
+	def log_message(self, format, *args):
+		return
+
+	def serve_static_file(self, path):
+		if path == "/":
+			path = "/bus.html"
+
+		relative_path = posixpath.normpath(unquote(path)).lstrip("/")
+		root = os.getcwd()
+		file_path = os.path.abspath(os.path.join(root, relative_path))
+
+		if not file_path.startswith(root) or not os.path.isfile(file_path):
+			self.send_response(404)
+			self.end_headers()
+			return
+
+		content_types = {
+			".html": "text/html; charset=utf-8",
+			".css": "text/css; charset=utf-8",
+			".js": "application/javascript; charset=utf-8",
+			".json": "application/json; charset=utf-8",
+			".jpg": "image/jpeg",
+			".jpeg": "image/jpeg",
+			".png": "image/png",
+			".mp4": "video/mp4",
+		}
+		extension = os.path.splitext(file_path)[1].lower()
+
+		self.send_response(200)
+		self.send_header("Content-Type", content_types.get(extension, "application/octet-stream"))
+		self.send_header("Cache-Control", "no-cache")
+		self.end_headers()
+
+		with open(file_path, "rb") as file:
+			self.wfile.write(file.read())
+
+def start_web_stream_server(port=8001):
+	def run_server():
+		try:
+			server = StreamingServer(("", port), StreamingHandler)
+			logger.info("Web page: http://localhost:%s/bus.html", port)
+			logger.info("Web video stream: http://localhost:%s/video_feed", port)
+			server.serve_forever()
+		except OSError as error:
+			logger.warning("Web video stream server failed: %s", error)
+
+	server_thread = threading.Thread(target=run_server)
+	server_thread.daemon = True
+	server_thread.start()
+
+def update_web_frame(frame):
+	global latest_web_frame
+	success, encoded = cv2.imencode(".jpg", frame)
+	if not success:
+		return
+
+	with latest_web_frame_lock:
+		latest_web_frame = encoded.tobytes()
 
 def post_count_update(event, total_enter, total_exit, current_inside, timestamp):
 	# function to post counting events to a web service
@@ -123,6 +225,7 @@ def send_count_update(event, total_enter, total_exit, current_inside, timestamp)
 def people_counter():
 	# main function for people_counter.py
 	args = parse_arguments()
+	start_web_stream_server()
 	# initialize the list of class labels MobileNet SSD was trained to detect
 	CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
 		"bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
@@ -384,6 +487,8 @@ def people_counter():
 		# check to see if we should write the frame to disk
 		if writer is not None:
 			writer.write(frame)
+
+		update_web_frame(frame)
 
 		# show the output frame
 		cv2.imshow("Real-Time Monitoring/Analysis Window", frame)

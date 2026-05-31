@@ -18,18 +18,6 @@
     <!-- (기존 코드 그대로 유지) -->
     <!-- wrapper 전체 그대로 여기 안에 넣으면 됨 -->
 
-</div>
-
-<!-- 카메라 화면 -->
-<div id="camera-page" class="hidden">
-    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
-
-    <div class="camera-box">
-        <p>📷 카메라 화면 (준비 중)</p>
-        <p>여기에 실시간 영상이 표시됩니다</p>
-    </div>
-</div>
-
 <div class="wrapper">
 
     <h1>🚌 셔틀버스 대기 시스템</h1>
@@ -117,6 +105,18 @@
         <p class="route">※ 노선: 화랑대역 · 태릉입구역 · 석계역</p>
     </div>
 
+</div>
+
+</div>
+
+<!-- 카메라 화면 -->
+<div id="camera-page" class="hidden">
+    <button class="back-btn" onclick="showMain()">← 돌아가기</button>
+
+    <div class="camera-box">
+        <p id="monitor-message">Python 실행 화면을 기다리는 중입니다.</p>
+        <img id="monitor-frame" src="" alt="Python 실행 화면" onerror="showMonitorMessage()">
+    </div>
 </div>
 
 <!-- 팝업 -->

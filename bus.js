@@ -1,11 +1,41 @@
+const monitorStreamUrl = "/video_feed";
+
 function showCamera() {
     document.getElementById("main-page").style.display = "none";
     document.getElementById("camera-page").style.display = "block";
+
+    const frame = document.getElementById("monitor-frame");
+    const message = document.getElementById("monitor-message");
+
+    if (message) {
+        message.style.display = "block";
+        message.innerText = "people_counter.py 실행 화면을 기다리는 중입니다.";
+    }
+    if (frame) {
+        frame.style.display = "block";
+        if (message) {
+            message.style.display = "none";
+        }
+        frame.src = monitorStreamUrl + "?t=" + Date.now();
+    }
 }
 
 function showMain() {
     document.getElementById("camera-page").style.display = "none";
     document.getElementById("main-page").style.display = "block";
+}
+
+function showMonitorMessage() {
+    const frame = document.getElementById("monitor-frame");
+    const message = document.getElementById("monitor-message");
+
+    if (!frame || !message) {
+        return;
+    }
+
+    frame.style.display = "none";
+    message.style.display = "block";
+    message.innerText = "people_counter.py를 실행하면 여기에 화면이 표시됩니다.";
 }
 
 const max = 50;
