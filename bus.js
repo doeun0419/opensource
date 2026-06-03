@@ -22,21 +22,35 @@ const elements = {
     reservationCount: document.getElementById("reservation-count"),
     setAlarmButton: document.getElementById("set-alarm-btn"),
     cancelAlarmButton: document.getElementById("cancel-alarm-btn"),
+    // 추가: 예상 혼잡도 관련 요소
+    forecastList: document.getElementById("forecast-list"),
 };
 
 let selectedTime = "";
 
-function getReservationCounts() {
+// ─── 예약 데이터 관련 (서버 API 사용) ──────────────────────────
+
+// 서버에서 받아온 최신 예약 데이터를 메모리에 캐시
+let reservationCache = {};
+
+async function fetchReservations() {
     try {
-        return JSON.parse(localStorage.getItem(RESERVATION_STORAGE_KEY)) || {};
-    } catch (error) {
-        return {};
+        const res = await fetch("/reservations?t=" + Date.now());
+        if (!res.ok) return;
+        reservationCache = await res.json();
+        updateForecast();
+        restoreAlarmButtons();
+    } catch (e) {
+        // 서버 미연결 시 무시
     }
 }
 
+function getReservationCounts() {
+    return reservationCache;
+}
+
 function getReservationCount(time) {
-    const counts = getReservationCounts();
-    return Number(counts[time]) || 0;
+    return Number(reservationCache[time]) || 0;
 }
 
 function updateReservationCount(time) {
@@ -44,12 +58,135 @@ function updateReservationCount(time) {
     elements.reservationCount.textContent = `현재 예약 ${count}명`;
 }
 
-function addReservation(time) {
-    const counts = getReservationCounts();
-    counts[time] = getReservationCount(time) + 1;
-    localStorage.setItem(RESERVATION_STORAGE_KEY, JSON.stringify(counts));
-    updateReservationCount(time);
+async function addReservation(time) {
+    try {
+        const res = await fetch("/reservations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ time, action: "add" }),
+        });
+        reservationCache = await res.json();
+        updateReservationCount(time);
+        updateForecast();
+        markAlarmButton(time);
+    } catch (e) {
+        alert("서버에 연결할 수 없습니다. people_counter.py가 실행 중인지 확인해주세요.");
+    }
 }
+
+// ─── 추가: 모든 시간표 버튼에서 시간 목록 수집 (중복 제거) ─────
+
+function getAllBusTimes() {
+    const seen = new Set();
+    const result = [];
+    document.querySelectorAll(".time").forEach((btn) => {
+        const text = btn.textContent.trim();
+        if (!seen.has(text)) {
+            seen.add(text);
+            const [h, m] = text.split(":").map(Number);
+            result.push({ time: text, totalMinutes: h * 60 + m });
+        }
+    });
+    result.sort((a, b) => a.totalMinutes - b.totalMinutes);
+    return result;
+}
+
+// ─── 추가: 시간대별 예상 혼잡도 목록 렌더링 ───────────────────
+
+function getForecastStatus(percent) {
+    if (percent === 0) {
+        return { label: "예약 없음", className: "none", color: "rgba(0,44,119,0.18)" };
+    }
+    if (percent >= 100) {
+        return { label: "위험", className: "danger", color: "#c81e1e" };
+    }
+    if (percent >= 60) {
+        return { label: "혼잡", className: "warning", color: "#e66400" };
+    }
+    return { label: "여유", className: "safe", color: "#00AFEC" };
+}
+
+function updateForecast() {
+    const allTimes = getAllBusTimes();
+    const counts = getReservationCounts();
+    const hasSomeReservation = allTimes.some((t) => (counts[t.time] || 0) > 0);
+
+    if (!hasSomeReservation) {
+        elements.forecastList.innerHTML = `<p class="forecast-empty">아직 예약된 알림이 없습니다. 시간표에서 시간을 눌러 알림을 설정해보세요.</p>`;
+        return;
+    }
+
+    elements.forecastList.innerHTML = allTimes
+        .filter((t) => (counts[t.time] || 0) > 0)
+        .map((t) => {
+            const count = counts[t.time] || 0;
+            const percent = Math.min((count / MAX_WAITING_COUNT) * 100, 100);
+            const status = getForecastStatus(percent);
+            return `
+                <div class="forecast-row">
+                    <span class="forecast-time">${t.time}</span>
+                    <div class="forecast-bar-wrap">
+                        <div class="forecast-bar-track">
+                            <div class="forecast-bar-fill" style="width:${percent}%; background:${status.color};"></div>
+                        </div>
+                        <span class="forecast-count">${count}명 예약 (정원 ${MAX_WAITING_COUNT}명 기준 ${Math.round(percent)}%)</span>
+                    </div>
+                    <span class="forecast-badge ${status.className}">${status.label}</span>
+                </div>
+            `;
+        })
+        .join("");
+}
+
+// ─── 추가: 알림 설정된 버튼에 시각적 표시 ─────────────────────
+
+function isAlarmSet(time) {
+    return getReservationCount(time) > 0;
+}
+
+function markAlarmButton(time) {
+    document.querySelectorAll(".time").forEach((btn) => {
+        if (btn.textContent.trim() === time) {
+            btn.classList.add("alarm-set");
+        }
+    });
+}
+
+function unmarkAlarmButton(time) {
+    document.querySelectorAll(".time").forEach((btn) => {
+        if (btn.textContent.trim() === time) {
+            btn.classList.remove("alarm-set");
+        }
+    });
+}
+
+function restoreAlarmButtons() {
+    const counts = getReservationCounts();
+    Object.keys(counts).forEach((time) => {
+        if (counts[time] > 0) {
+            markAlarmButton(time);
+        }
+    });
+}
+
+function removeReservation(time) {
+    fetch("/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ time, action: "remove" }),
+    })
+        .then((res) => res.json())
+        .then((data) => {
+            reservationCache = data;
+            unmarkAlarmButton(time);
+            updateForecast();
+        })
+        .catch(() => {
+            alert("서버에 연결할 수 없습니다. people_counter.py가 실행 중인지 확인해주세요.");
+        });
+}
+
+// ─── 기존 코드 유지 ────────────────────────────────────────────
 
 function setConnectionState(label, detail) {
     if (!elements.connectionStatus || !elements.lastUpdated) {
@@ -152,7 +289,18 @@ function showMonitorFrame() {
 
 function openPopup(time) {
     selectedTime = time;
-    elements.popupText.textContent = `${selectedTime} 버스 출발 15분 전 알림을 설정하시겠습니까?`;
+    const alreadySet = isAlarmSet(time);
+
+    if (alreadySet) {
+        elements.popupText.textContent = `${selectedTime} 버스 알림이 이미 설정되어 있습니다. 취소하시겠습니까?`;
+        elements.setAlarmButton.textContent = "알림 취소";
+        elements.setAlarmButton.dataset.mode = "cancel";
+    } else {
+        elements.popupText.textContent = `${selectedTime} 버스 출발 15분 전 알림을 설정하시겠습니까?`;
+        elements.setAlarmButton.textContent = "설정";
+        elements.setAlarmButton.dataset.mode = "set";
+    }
+
     updateReservationCount(selectedTime);
     elements.popup.style.display = "flex";
 }
@@ -175,7 +323,15 @@ async function ensureNotificationPermission() {
 
 async function setAlarm() {
     closePopup();
-    addReservation(selectedTime);
+
+    if (elements.setAlarmButton.dataset.mode === "cancel") {
+        removeReservation(selectedTime);
+        showToastCancel(selectedTime);
+        return;
+    }
+
+    await addReservation(selectedTime);
+    showToastSet(selectedTime);
 
     const permission = await ensureNotificationPermission();
     const now = new Date();
@@ -197,21 +353,93 @@ async function setAlarm() {
 
     if (permission === "denied") {
         alert("브라우저 알림이 차단되어 있어 화면 알림으로 알려드릴게요.");
-        return;
     }
+}
 
-    alert("알림이 설정되었습니다.");
+function showToastSet(time) {
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = "toast-item toast-info";
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="ti ti-bell" aria-hidden="true"></i></div>
+        <div class="toast-body">
+            <p class="toast-eyebrow">알림 설정 완료</p>
+            <p class="toast-title">${time} 버스 알림 설정됨</p>
+            <p class="toast-sub">출발 15분 전에 알려드릴게요</p>
+        </div>
+        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
+    `;
+    toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
+    container.appendChild(toast);
+    setTimeout(() => dismissToast(toast), 4000);
+}
+
+function showToastCancel(time) {
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = "toast-item toast-warning";
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="ti ti-bell-off" aria-hidden="true"></i></div>
+        <div class="toast-body">
+            <p class="toast-eyebrow">알림 취소됨</p>
+            <p class="toast-title">${time} 버스 알림 취소됨</p>
+            <p class="toast-sub">해당 시간 알림이 해제되었습니다</p>
+        </div>
+        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
+    `;
+    toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
+    container.appendChild(toast);
+    setTimeout(() => dismissToast(toast), 4000);
+}
+
+function getToastLevel(time) {
+    const count = getReservationCount(time);
+    const percent = (count / MAX_WAITING_COUNT) * 100;
+    if (percent >= 100) return { level: "danger", label: "위험 · 정원 초과 예상" };
+    if (percent >= 60) return { level: "warning", label: `혼잡 예정 · 예약 ${count}명` };
+    return { level: "info", label: `예약 ${count}명` };
+}
+
+function showToast(time) {
+    const container = document.getElementById("toast-container");
+    const { level, label } = getToastLevel(time);
+    const count = getReservationCount(time);
+    const percent = Math.min((count / MAX_WAITING_COUNT) * 100, 100);
+
+    const toast = document.createElement("div");
+    toast.className = `toast-item toast-${level}`;
+    toast.innerHTML = `
+        <div class="toast-icon"><i class="ti ti-bus" aria-hidden="true"></i></div>
+        <div class="toast-body">
+            <p class="toast-eyebrow">Departure Alert</p>
+            <p class="toast-title">${time} 버스 출발 15분 전</p>
+            <p class="toast-sub">${label}</p>
+            <div class="toast-progress">
+                <div class="toast-progress-fill" style="width:${percent}%"></div>
+            </div>
+        </div>
+        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
+    `;
+
+    toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
+    container.appendChild(toast);
+    setTimeout(() => dismissToast(toast), 6000);
+}
+
+function dismissToast(toast) {
+    if (!toast.parentNode) return;
+    toast.classList.add("toast-out");
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
 }
 
 function showNotification(time) {
+    showToast(time);
+
     if ("Notification" in window && Notification.permission === "granted") {
         new Notification("셔틀버스 알림", {
             body: `${time} 버스 출발 15분 전입니다.`,
         });
-        return;
     }
-
-    alert(`${time} 버스 출발 15분 전입니다.`);
 }
 
 function bindEvents() {
@@ -243,4 +471,6 @@ function bindEvents() {
 bindEvents();
 updateDashboard(DEFAULT_WAITING_COUNT);
 loadCountState();
+fetchReservations();   // 추가: 서버에서 예약 데이터 초기 로드
 window.setInterval(loadCountState, 1000);
+window.setInterval(fetchReservations, 3000); // 추가: 3초마다 예약 데이터 갱신

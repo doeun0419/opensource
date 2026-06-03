@@ -199,6 +199,113 @@ h3 {
     min-height: 210px;
 }
 
+/* 추가: 시간대별 예상 혼잡도 섹션 */
+.forecast-section {
+    margin: 0 14px 14px;
+    padding: 18px 20px 20px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.forecast-head {
+    margin-bottom: 16px;
+}
+
+.forecast-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+    opacity: 0.72;
+}
+
+.forecast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.forecast-row {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--surface);
+}
+
+.forecast-time {
+    font-size: 14px;
+    font-weight: 850;
+    color: var(--blue);
+    white-space: nowrap;
+}
+
+.forecast-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.forecast-bar-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(0, 44, 119, 0.08);
+    overflow: hidden;
+}
+
+.forecast-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.forecast-count {
+    font-size: 12px;
+    color: var(--muted);
+    opacity: 0.6;
+}
+
+.forecast-badge {
+    font-size: 12px;
+    font-weight: 850;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.forecast-badge.safe {
+    background: rgba(0, 175, 236, 0.12);
+    color: #005f8a;
+}
+
+.forecast-badge.warning {
+    background: rgba(230, 100, 0, 0.12);
+    color: #b85000;
+}
+
+.forecast-badge.danger {
+    background: rgba(200, 30, 30, 0.12);
+    color: #a81c1c;
+}
+
+.forecast-badge.none {
+    background: rgba(0, 44, 119, 0.06);
+    color: var(--blue);
+    opacity: 0.5;
+}
+
+.forecast-empty {
+    padding: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    opacity: 0.55;
+}
+
 .metric-card p {
     margin-bottom: 10px;
     font-size: 14px;
@@ -425,6 +532,12 @@ h3 {
     outline: none;
 }
 
+/* 추가: 알림 설정된 시간 버튼 표시 */
+.time.alarm-set {
+    background: rgba(0, 175, 236, 0.18);
+    outline: 2px solid var(--light-blue);
+}
+
 .camera-box {
     display: grid;
     width: min(920px, calc(100% - 32px));
@@ -573,5 +686,160 @@ h3 {
 
     .popup-actions {
         flex-direction: column-reverse;
+    }
+}
+
+/* 추가: 토스트 알림 */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+    pointer-events: none;
+}
+
+.toast-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 320px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid;
+    pointer-events: all;
+    animation: toast-in 0.28s ease;
+}
+
+.toast-item.toast-out {
+    animation: toast-out 0.24s ease forwards;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(32px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(32px); }
+}
+
+.toast-item.toast-info {
+    background: rgba(0, 175, 236, 0.07);
+    border-color: rgba(0, 175, 236, 0.28);
+}
+
+.toast-item.toast-warning {
+    background: rgba(230, 100, 0, 0.07);
+    border-color: rgba(230, 100, 0, 0.25);
+}
+
+.toast-item.toast-danger {
+    background: rgba(200, 30, 30, 0.07);
+    border-color: rgba(200, 30, 30, 0.22);
+}
+
+.toast-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 17px;
+}
+
+.toast-info .toast-icon { background: rgba(0, 175, 236, 0.12); color: #005f8a; }
+.toast-warning .toast-icon { background: rgba(230, 100, 0, 0.12); color: #b85000; }
+.toast-danger .toast-icon { background: rgba(200, 30, 30, 0.12); color: #a81c1c; }
+
+.toast-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-eyebrow {
+    margin: 0 0 2px;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.toast-info .toast-eyebrow { color: #005f8a; }
+.toast-warning .toast-eyebrow { color: #b85000; }
+.toast-danger .toast-eyebrow { color: #a81c1c; }
+
+.toast-title {
+    margin: 0 0 2px;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.toast-info .toast-title { color: var(--blue); }
+.toast-warning .toast-title { color: #7a3500; }
+.toast-danger .toast-title { color: #6b1212; }
+
+.toast-sub {
+    margin: 0;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.toast-info .toast-sub { color: var(--blue); }
+.toast-warning .toast-sub { color: #7a3500; }
+.toast-danger .toast-sub { color: #6b1212; }
+
+.toast-progress {
+    height: 3px;
+    border-radius: 2px;
+    margin-top: 8px;
+    background: rgba(0, 44, 119, 0.08);
+    overflow: hidden;
+}
+
+.toast-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.toast-info .toast-progress-fill { background: #00AFEC; }
+.toast-warning .toast-progress-fill { background: #e66400; }
+.toast-danger .toast-progress-fill { background: #c81e1e; }
+
+.toast-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    opacity: 0.35;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.toast-info .toast-close { color: var(--blue); }
+.toast-warning .toast-close { color: #7a3500; }
+.toast-danger .toast-close { color: #6b1212; }
+
+.toast-close:hover { opacity: 0.7; }
+
+@media (max-width: 520px) {
+    .toast-container {
+        bottom: 16px;
+        right: 12px;
+        left: 12px;
+        align-items: stretch;
+    }
+
+    .toast-item {
+        width: 100%;
     }
 }

@@ -63,9 +63,9 @@ def parse_arguments():
     ap.add_argument("-o", "--output", type=str,
         help="path to optional output video file")
     # confidence default 0.4
-    ap.add_argument("-c", "--confidence", type=float, default=0.15,
+    ap.add_argument("-c", "--confidence", type=float, default=0.4,
         help="minimum probability to filter weak detections")
-    ap.add_argument("-s", "--skip-frames", type=int, default=15,
+    ap.add_argument("-s", "--skip-frames", type=int, default=24,
         help="# of skip frames between detections")
     args = vars(ap.parse_args())
     return args
@@ -313,7 +313,7 @@ def people_counter():
     # instantiate our centroid tracker, then initialize a list to store
     # each of our dlib correlation trackers, followed by a dictionary to
     # map each unique object ID to a TrackableObject
-    ct = CentroidTracker(maxDisappeared=12, maxDistance=220)
+    ct = CentroidTracker(maxDisappeared=20, maxDistance=80)
     trackers = []
     trackableObjects = {}
 
@@ -439,9 +439,9 @@ def people_counter():
                 # add the bounding box coordinates to the rectangles list
                 rects.append((startX, startY, endX, endY))
 
-        # draw a horizontal line in the center of the frame -- once an
+        # draw a vertical line in the center of the frame -- once an
         # object crosses this line we will determine whether they were
-        # moving 'up' or 'down'
+        # moving 'left' or 'right'
         cv2.line(frame, (W // 2, 0), (W // 2, H), (0, 0, 0), 3)
         cv2.putText(frame, "-Prediction border - Entrance-", (10, H - ((i * 20) + 200)),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
@@ -463,20 +463,18 @@ def people_counter():
             # otherwise, there is a trackable object so we can utilize it
             # to determine direction
             else:
-                # the difference between the y-coordinate of the *current*
+                # the difference between the x-coordinate of the *current*
                 # centroid and the mean of *previous* centroids will tell
                 # us in which direction the object is moving (negative for
-                # 'up' and positive for 'down')
+                # 'left' and positive for 'right')
                 x = [c[0] for c in to.centroids]
                 direction = centroid[0] - np.mean(x)
                 to.centroids.append(centroid)
 
                 # check to see if the object has been counted or not
                 if not to.counted:
-                    # if the direction is negative (indicating the object
-                    # is moving up) AND the centroid is above the center
-                    # line, count the object
-                    if direction < 0 and centroid[0] < W // 2 and abs(direction) > 10:
+                    # moving left → Exit (오른쪽에서 왼쪽으로 = 나감)
+                    if direction < 0 and centroid[0] < W // 2:
                         totalUp += 1
                         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                         move_out.append(totalUp)
@@ -487,20 +485,16 @@ def people_counter():
                         send_count_update("exit", totalDown, totalUp, current_inside, date_time)
                         to.counted = True
 
-                    # if the direction is positive (indicating the object
-                    # is moving down) AND the centroid is below the
-                    # center line, count the object
-                    elif direction > 0 and centroid[0] > W // 2 and abs(direction) > 3:
+                    # moving right → Enter (왼쪽에서 오른쪽으로 = 들어옴)
+                    elif direction > 0 and centroid[0] > W // 2:
                         totalDown += 1
                         date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                         move_in.append(totalDown)
                         in_time.append(date_time)
-                        # compute the sum of total people inside
                         current_inside = len(move_in) - len(move_out)
                         total = [current_inside]
                         write_count_state("enter", totalDown, totalUp, current_inside, date_time)
                         send_count_update("enter", totalDown, totalUp, current_inside, date_time)
-                        # if the people limit exceeds over threshold, show an on-screen alert
                         if sum(total) >= config["Threshold"]:
                             cv2.putText(frame, "-ALERT: People limit exceeded-", (10, frame.shape[0] - 80),
                                 cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2)
