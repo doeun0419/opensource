@@ -4,6 +4,11 @@ const MAX_WAITING_COUNT = 60;
 const DEFAULT_WAITING_COUNT = 30;
 const RESERVATION_STORAGE_KEY = "shuttleReservationCounts";
 
+// 주차장: parking_counter.py 가 별도 포트(기본 8002)에서 스트리밍
+const PARKING_STREAM_PORT = 8002;
+const PARKING_STREAM_URL = `http://${location.hostname || "localhost"}:${PARKING_STREAM_PORT}/video_feed`;
+const PARKING_STATE_URL = "utils/data/parking_state.json";
+
 const elements = {
     brandLink: document.querySelector("[data-view-link]"),
     navTabs: document.querySelectorAll("[data-view]"),
@@ -24,6 +29,17 @@ const elements = {
     cancelAlarmButton: document.getElementById("cancel-alarm-btn"),
     // 추가: 예상 혼잡도 관련 요소
     forecastList: document.getElementById("forecast-list"),
+    // 추가: 대체 교통 추천 요소
+    recommendSection: document.getElementById("recommend-section"),
+    recommendBanner: document.getElementById("recommend-banner"),
+    // 추가: 주차장 관련 요소
+    parkingFrame: document.getElementById("parking-frame"),
+    parkingMessage: document.getElementById("parking-message"),
+    parkingStatus: document.getElementById("parking-status"),
+    parkingAvailable: document.getElementById("parking-available"),
+    parkingCount: document.getElementById("parking-count"),
+    parkingCapacity: document.getElementById("parking-capacity"),
+    parkingBar: document.getElementById("parking-bar"),
 };
 
 let selectedTime = "";
@@ -226,6 +242,31 @@ function updateDashboard(count) {
     elements.status.className = status.className;
     elements.bar.style.width = `${Math.min(percent, 100)}%`;
     elements.bar.style.background = status.color;
+
+    updateRecommendation(percent);
+}
+
+// ─── 추가: 혼잡도에 따른 대체 교통 추천 ────────────────────────
+// 여유(<60%)면 안내만, 혼잡(>=60%)/위험(>=100%)이면 추천 카드를 강조해 노출
+function updateRecommendation(percent) {
+    const section = elements.recommendSection;
+    const banner = elements.recommendBanner;
+    if (!section || !banner) {
+        return;
+    }
+
+    section.classList.remove("calm", "warn", "danger");
+
+    if (percent >= 100) {
+        section.classList.add("danger");
+        banner.textContent = "⚠️ 셔틀버스가 매우 혼잡합니다. 아래 대체 교통편을 강력히 추천합니다!";
+    } else if (percent >= 60) {
+        section.classList.add("warn");
+        banner.textContent = "🚍 셔틀버스가 혼잡합니다. 아래 대체 교통편을 이용해보세요.";
+    } else {
+        section.classList.add("calm");
+        banner.textContent = "🙂 지금은 셔틀버스가 여유롭습니다. 혼잡해지면 대체 교통편을 추천해드려요.";
+    }
 }
 
 async function loadCountState() {
@@ -243,6 +284,72 @@ async function loadCountState() {
     } catch (error) {
         setConnectionState("오프라인", "Python 서버 또는 파일 확인 필요");
     }
+}
+
+// ─── 주차장 현황 / 스트림 ─────────────────────────────
+
+function getParkingStatus(available, total) {
+    if (total <= 0 || available <= 0) {
+        return { label: "만차", color: "#002C77", className: "danger" };
+    }
+    const ratio = available / total;
+    if (ratio <= 0.2) {
+        return { label: "혼잡", color: "#002C77", className: "warning" };
+    }
+    return { label: "여유", color: "#00AFEC", className: "" };
+}
+
+function updateParkingDashboard(data) {
+    const total = Math.max(0, Number(data.total) || 0);
+    const parked = Math.max(0, Number(data.parked) || 0);
+    const available = Math.max(0, Number(data.available ?? total - parked) || 0);
+    const status = getParkingStatus(available, total);
+    const usedPercent = total > 0 ? (parked / total) * 100 : 0;
+
+    elements.parkingAvailable.textContent = `${available}`;
+    elements.parkingCount.textContent = `${parked}대`;
+    elements.parkingCapacity.textContent = `전체 ${total}면`;
+    elements.parkingStatus.textContent = status.label;
+    elements.parkingStatus.className = status.className;
+    elements.parkingBar.style.width = `${Math.min(usedPercent, 100)}%`;
+    elements.parkingBar.style.background = status.color;
+}
+
+async function loadParkingState() {
+    try {
+        const response = await fetch(`${PARKING_STATE_URL}?t=${Date.now()}`);
+        if (!response.ok) {
+            return;
+        }
+        const data = await response.json();
+        updateParkingDashboard(data);
+    } catch (error) {
+        // parking_counter.py 미실행 시 무시
+    }
+}
+
+function startParkingStream() {
+    elements.parkingMessage.style.display = "block";
+    elements.parkingFrame.style.display = "none";
+    elements.parkingMessage.textContent = "주차장 영상을 기다리는 중입니다.";
+    elements.parkingFrame.src = `${PARKING_STREAM_URL}?t=${Date.now()}`;
+}
+
+function stopParkingStream() {
+    elements.parkingFrame.removeAttribute("src");
+    elements.parkingFrame.style.display = "none";
+    elements.parkingMessage.style.display = "block";
+}
+
+function showParkingFrame() {
+    elements.parkingMessage.style.display = "none";
+    elements.parkingFrame.style.display = "block";
+}
+
+function showParkingMessage() {
+    elements.parkingFrame.style.display = "none";
+    elements.parkingMessage.style.display = "block";
+    elements.parkingMessage.textContent = "주차장 영상을 불러올 수 없습니다. parking_counter.py가 실행 중인지 확인해주세요.";
 }
 
 function startCamera() {
@@ -271,6 +378,13 @@ function setActiveView(view) {
         startCamera();
     } else {
         stopCamera();
+    }
+
+    if (view === "parking") {
+        startParkingStream();
+        loadParkingState();
+    } else {
+        stopParkingStream();
     }
 
     window.scrollTo(0, 0);
@@ -454,6 +568,8 @@ function bindEvents() {
 
     elements.monitorFrame.addEventListener("load", showMonitorFrame);
     elements.monitorFrame.addEventListener("error", showMonitorMessage);
+    elements.parkingFrame.addEventListener("load", showParkingFrame);
+    elements.parkingFrame.addEventListener("error", showParkingMessage);
     elements.cancelAlarmButton.addEventListener("click", closePopup);
     elements.setAlarmButton.addEventListener("click", setAlarm);
 
@@ -474,3 +590,4 @@ loadCountState();
 fetchReservations();   // 추가: 서버에서 예약 데이터 초기 로드
 window.setInterval(loadCountState, 1000);
 window.setInterval(fetchReservations, 3000); // 추가: 3초마다 예약 데이터 갱신
+window.setInterval(loadParkingState, 1000);   // 추가: 1초마다 주차장 현황 갱신

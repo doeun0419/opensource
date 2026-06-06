@@ -12,7 +12,6 @@ import schedule
 import logging
 import imutils
 import time
-import dlib
 import json
 import csv
 import cv2
@@ -63,10 +62,14 @@ def parse_arguments():
     ap.add_argument("-o", "--output", type=str,
         help="path to optional output video file")
     # confidence default 0.4
-    ap.add_argument("-c", "--confidence", type=float, default=0.15,
+    ap.add_argument("-c", "--confidence", type=float, default=0.12,
         help="minimum probability to filter weak detections")
-    ap.add_argument("-s", "--skip-frames", type=int, default=15,
+    ap.add_argument("-s", "--skip-frames", type=int, default=2,
         help="# of skip frames between detections")
+    ap.add_argument("--no-window", action="store_true",
+        help="don't open the OpenCV desktop window; serve the browser view only")
+    ap.add_argument("--no-loop", action="store_true",
+        help="stop when the input video ends instead of looping it")
     args = vars(ap.parse_args())
     return args
 
@@ -313,8 +316,7 @@ def people_counter():
     # instantiate our centroid tracker, then initialize a list to store
     # each of our dlib correlation trackers, followed by a dictionary to
     # map each unique object ID to a TrackableObject
-    ct = CentroidTracker(maxDisappeared=12, maxDistance=220)
-    trackers = []
+    ct = CentroidTracker(maxDisappeared=25, maxDistance=110)
     trackableObjects = {}
 
     # initialize the total number of frames processed thus far, along
@@ -346,13 +348,28 @@ def people_counter():
         # if we are viewing a video and we did not grab a frame then we
         # have reached the end of the video
         if args["input"] is not None and frame is None:
-            break
+            if args.get("no_loop"):
+                break
+            # loop the clip so the web server keeps serving; reset the
+            # counters/tracker so each loop starts fresh (the video visibly
+            # restarts, so the count restarting is intuitive)
+            vs.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ct = CentroidTracker(maxDisappeared=25, maxDistance=110)
+            trackableObjects = {}
+            totalDown = 0
+            totalUp = 0
+            total = []
+            move_in = []
+            move_out = []
+            in_time = []
+            out_time = []
+            write_count_state("init", totalDown, totalUp, 0,
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+            continue
 
-        # resize the frame to have a maximum width of 500 pixels (the
-        # less data we have, the faster we can process it), then convert
-        # the frame from BGR to RGB for dlib
+        # resize the frame to have a maximum width of 500 pixels
+        # (the less data we have, the faster we can process it)
         frame = imutils.resize(frame, width = 500)
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # if the frame dimensions are empty, set them
         if W is None or H is None:
@@ -365,78 +382,36 @@ def people_counter():
             writer = cv2.VideoWriter(args["output"], fourcc, 30,
                 (W, H), True)
 
-        # initialize the current status along with our list of bounding
-        # box rectangles returned by either (1) our object detector or
-        # (2) the correlation trackers
-        status = "Waiting"
+        # run the object detector on EVERY frame and collect person boxes.
+        # (Top-down footage is hard for MobileNet-SSD, so detecting every
+        # frame — instead of every N frames with a tracker filling gaps —
+        # gives far better recall and cleaner trajectories for line crossing.)
+        status = "Detecting"
         rects = []
 
-        # check to see if we should run a more computationally expensive
-        # object detection method to aid our tracker
-        if totalFrames % args["skip_frames"] == 0:
-            # set the status and initialize our new set of object trackers
-            status = "Detecting"
-            trackers = []
+        # convert the frame to a blob and pass it through the network
+        blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
+        net.setInput(blob)
+        detections = net.forward()
 
-            # convert the frame to a blob and pass the blob through the
-            # network and obtain the detections
-            blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
-            net.setInput(blob)
-            detections = net.forward()
+        # loop over the detections
+        for i in np.arange(0, detections.shape[2]):
+            # extract the confidence (i.e., probability)
+            confidence = detections[0, 0, i, 2]
 
-            # loop over the detections
-            for i in np.arange(0, detections.shape[2]):
-                # extract the confidence (i.e., probability) associated
-                # with the prediction
-                confidence = detections[0, 0, i, 2]
+            # filter out weak detections by requiring a minimum confidence
+            if confidence > args["confidence"]:
+                # extract the index of the class label
+                idx = int(detections[0, 0, i, 1])
 
-                # filter out weak detections by requiring a minimum
-                # confidence
-                if confidence > args["confidence"]:
-                    # extract the index of the class label from the
-                    # detections list
-                    idx = int(detections[0, 0, i, 1])
+                # if the class label is not a person, ignore it
+                if CLASSES[idx] != "person":
+                    continue
 
-                    # if the class label is not a person, ignore it
-                    if CLASSES[idx] != "person":
-                        continue
-
-                    # compute the (x, y)-coordinates of the bounding box
-                    # for the object
-                    box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
-                    (startX, startY, endX, endY) = box.astype("int")
-
-                    # construct a dlib rectangle object from the bounding
-                    # box coordinates and then start the dlib correlation
-                    # tracker
-                    tracker = dlib.correlation_tracker()
-                    rect = dlib.rectangle(startX, startY, endX, endY)
-                    tracker.start_track(rgb, rect)
-
-                    # add the tracker to our list of trackers so we can
-                    # utilize it during skip frames
-                    trackers.append(tracker)
-
-        # otherwise, we should utilize our object *trackers* rather than
-        # object *detectors* to obtain a higher frame processing throughput
-        else:
-            # loop over the trackers
-            for tracker in trackers:
-                # set the status of our system to be 'tracking' rather
-                # than 'waiting' or 'detecting'
-                status = "Tracking"
-
-                # update the tracker and grab the updated position
-                tracker.update(rgb)
-                pos = tracker.get_position()
-
-                # unpack the position object
-                startX = int(pos.left())
-                startY = int(pos.top())
-                endX = int(pos.right())
-                endY = int(pos.bottom())
-
-                # add the bounding box coordinates to the rectangles list
+                # compute the (x, y)-coordinates of the bounding box and
+                # add them to the rectangles list for the centroid tracker
+                box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
+                (startX, startY, endX, endY) = box.astype("int")
                 rects.append((startX, startY, endX, endY))
 
         # draw a horizontal line in the center of the frame -- once an
@@ -456,55 +431,50 @@ def people_counter():
             # object ID
             to = trackableObjects.get(objectID, None)
 
-            # if there is no existing trackable object, create one
+            # if there is no existing trackable object, create one and
+            # record which side of the line it first appeared on
             if to is None:
                 to = TrackableObject(objectID, centroid)
+                to.side = 1 if centroid[0] > W // 2 else -1
 
-            # otherwise, there is a trackable object so we can utilize it
-            # to determine direction
+            # otherwise, look for an actual line crossing. A small margin
+            # keeps jitter right at the line from double-counting. Crossing
+            # to the right = Enter, crossing to the left = Exit. We flip the
+            # side each time, so a person walking back and forth is counted
+            # on every crossing.
             else:
-                # the difference between the y-coordinate of the *current*
-                # centroid and the mean of *previous* centroids will tell
-                # us in which direction the object is moving (negative for
-                # 'up' and positive for 'down')
-                x = [c[0] for c in to.centroids]
-                direction = centroid[0] - np.mean(x)
                 to.centroids.append(centroid)
+                cur_x = centroid[0]
+                line_x = W // 2
+                margin = 6
 
-                # check to see if the object has been counted or not
-                if not to.counted:
-                    # if the direction is negative (indicating the object
-                    # is moving up) AND the centroid is above the center
-                    # line, count the object
-                    if direction < 0 and centroid[0] < W // 2 and abs(direction) > 10:
-                        totalUp += 1
-                        date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                        move_out.append(totalUp)
-                        out_time.append(date_time)
-                        current_inside = len(move_in) - len(move_out)
-                        total = [current_inside]
-                        write_count_state("exit", totalDown, totalUp, current_inside, date_time)
-                        send_count_update("exit", totalDown, totalUp, current_inside, date_time)
-                        to.counted = True
+                # was on the left, now crossed to the right -> Enter
+                if to.side == -1 and cur_x > line_x + margin:
+                    to.side = 1
+                    totalDown += 1
+                    date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                    move_in.append(totalDown)
+                    in_time.append(date_time)
+                    current_inside = len(move_in) - len(move_out)
+                    total = [current_inside]
+                    write_count_state("enter", totalDown, totalUp, current_inside, date_time)
+                    send_count_update("enter", totalDown, totalUp, current_inside, date_time)
+                    # if the people limit exceeds over threshold, show an on-screen alert
+                    if sum(total) >= config["Threshold"]:
+                        cv2.putText(frame, "-ALERT: People limit exceeded-", (10, frame.shape[0] - 80),
+                            cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2)
 
-                    # if the direction is positive (indicating the object
-                    # is moving down) AND the centroid is below the
-                    # center line, count the object
-                    elif direction > 0 and centroid[0] > W // 2 and abs(direction) > 3:
-                        totalDown += 1
-                        date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-                        move_in.append(totalDown)
-                        in_time.append(date_time)
-                        # compute the sum of total people inside
-                        current_inside = len(move_in) - len(move_out)
-                        total = [current_inside]
-                        write_count_state("enter", totalDown, totalUp, current_inside, date_time)
-                        send_count_update("enter", totalDown, totalUp, current_inside, date_time)
-                        # if the people limit exceeds over threshold, show an on-screen alert
-                        if sum(total) >= config["Threshold"]:
-                            cv2.putText(frame, "-ALERT: People limit exceeded-", (10, frame.shape[0] - 80),
-                                cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2)
-                        to.counted = True
+                # was on the right, now crossed to the left -> Exit
+                elif to.side == 1 and cur_x < line_x - margin:
+                    to.side = -1
+                    totalUp += 1
+                    date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                    move_out.append(totalUp)
+                    out_time.append(date_time)
+                    current_inside = len(move_in) - len(move_out)
+                    total = [current_inside]
+                    write_count_state("exit", totalDown, totalUp, current_inside, date_time)
+                    send_count_update("exit", totalDown, totalUp, current_inside, date_time)
 
             # store the trackable object in our dictionary
             trackableObjects[objectID] = to
@@ -546,12 +516,14 @@ def people_counter():
 
         update_web_frame(frame)
 
-        # show the output frame
-        cv2.imshow("Real-Time Monitoring/Analysis Window", frame)
-        key = cv2.waitKey(1) & 0xFF
-        # if the `q` key was pressed, break from the loop
-        if key == ord("q"):
-            break
+        # show the output frame (skip the desktop window in --no-window mode,
+        # e.g. when you only want the browser view at http://localhost:8001)
+        if not args.get("no_window"):
+            cv2.imshow("Real-Time Monitoring/Analysis Window", frame)
+            key = cv2.waitKey(1) & 0xFF
+            # if the `q` key was pressed, break from the loop
+            if key == ord("q"):
+                break
         # increment the total number of frames processed thus far and
         # then update the FPS counter
         totalFrames += 1

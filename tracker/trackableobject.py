@@ -8,3 +8,7 @@ class TrackableObject:
 		# initialize a boolean used to indicate if the object has
 		# already been counted or not
 		self.counted = False
+
+		# which side of the counting line the object is currently on
+		# (-1 = left, +1 = right); used for line-crossing detection
+		self.side = None

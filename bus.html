@@ -16,6 +16,7 @@
             <nav class="nav-tabs" aria-label="상단 메뉴">
                 <button class="nav-tab active" type="button" data-view="home">홈</button>
                 <button class="nav-tab" type="button" data-view="camera">카메라</button>
+                <button class="nav-tab" type="button" data-view="parking">주차장</button>
             </nav>
         </header>
 
@@ -45,6 +46,41 @@
                     </div>
                 </article>
             </div>
+
+            <!-- 추가: 혼잡 시 대체 교통수단 추천 (정적). 아래 노선/대여소 정보는 실제 값으로 수정하세요. -->
+            <section class="recommend-section calm" id="recommend-section" aria-labelledby="recommend-title">
+                <div class="recommend-head">
+                    <p class="eyebrow">Alternative Transit</p>
+                    <h2 id="recommend-title">대체 교통수단 추천</h2>
+                    <p class="recommend-banner" id="recommend-banner">셔틀버스 혼잡도에 따라 추천을 표시합니다.</p>
+                </div>
+                <div class="recommend-list">
+                    <article class="recommend-card">
+                        <div class="recommend-icon" aria-hidden="true">🚇</div>
+                        <div class="recommend-body">
+                            <h3>지하철</h3>
+                            <p class="recommend-main">6호선 화랑대역 · 태릉입구역(6·7호선) · 석계역(1·6호선)</p>
+                            <p class="recommend-sub">정시 운행이라 혼잡 시 가장 안정적</p>
+                        </div>
+                    </article>
+                    <article class="recommend-card">
+                        <div class="recommend-icon" aria-hidden="true">🚌</div>
+                        <div class="recommend-body">
+                            <h3>시내버스</h3>
+                            <p class="recommend-main">2155 · 202번 (삼육대입구 ↔ 화랑대역)</p>
+                            <p class="recommend-sub">배차 약 10~15분 · 정류장: 삼육대앞</p>
+                        </div>
+                    </article>
+                    <article class="recommend-card">
+                        <div class="recommend-icon" aria-hidden="true">🚲</div>
+                        <div class="recommend-body">
+                            <h3>따릉이</h3>
+                            <p class="recommend-main">삼육대 도서관 · 삼육대 제3과학관 대여소</p>
+                            <p class="recommend-sub">가까운 역까지 단거리 이동에 적합</p>
+                        </div>
+                    </article>
+                </div>
+            </section>
 
             <section class="schedule-section" aria-labelledby="schedule-title">
                 <div>
@@ -177,6 +213,39 @@
             <div class="camera-box">
                 <p id="monitor-message">카메라화면을 기다리는 중입니다.</p>
                 <img id="monitor-frame" src="" alt="카메라화면">
+            </div>
+        </section>
+
+        <section class="view-panel" id="parking-panel" data-panel="parking" aria-labelledby="parking-title">
+            <div class="panel-head">
+                <div>
+                    <p class="eyebrow">Parking Status</p>
+                    <h1 id="parking-title">주차장 현황</h1>
+                </div>
+                <p class="route">실시간 입출차 모니터링</p>
+            </div>
+
+            <div class="status-layout">
+                <article class="metric-card primary">
+                    <div class="metric-label">
+                        <span>주차 가능</span>
+                        <strong id="parking-status">여유</strong>
+                    </div>
+                    <div class="percent-row">
+                        <span class="percent-value" id="parking-available">0</span>
+                        <div class="status-details" aria-label="주차 현황 상세">
+                            <span class="waiting-line">현재 주차 <strong id="parking-count">0대</strong> <em id="parking-capacity">전체 0면</em></span>
+                        </div>
+                    </div>
+                    <div class="bar" aria-hidden="true">
+                        <div class="bar-fill" id="parking-bar"></div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="camera-box">
+                <p id="parking-message">주차장 영상을 기다리는 중입니다.</p>
+                <img id="parking-frame" src="" alt="주차장 영상">
             </div>
         </section>
     </main>
