@@ -312,6 +312,7 @@ def people_counter():
     # the first frame from the video)
     W = None
     H = None
+    LINE_Y = None
 
     # instantiate our centroid tracker, then initialize a list to store
     # each of our dlib correlation trackers, followed by a dictionary to
@@ -374,6 +375,7 @@ def people_counter():
         # if the frame dimensions are empty, set them
         if W is None or H is None:
             (H, W) = frame.shape[:2]
+            LINE_Y = int(H * 0.68)
 
         # if we are supposed to be writing a video to disk, initialize
         # the writer
@@ -417,7 +419,7 @@ def people_counter():
         # draw a horizontal line in the center of the frame -- once an
         # object crosses this line we will determine whether they were
         # moving 'up' or 'down'
-        cv2.line(frame, (W // 2, 0), (W // 2, H), (0, 0, 0), 3)
+        cv2.line(frame, (0, LINE_Y), (W, LINE_Y), (0, 0, 0), 3)
         cv2.putText(frame, "-Prediction border - Entrance-", (10, H - ((i * 20) + 200)),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
@@ -435,7 +437,7 @@ def people_counter():
             # record which side of the line it first appeared on
             if to is None:
                 to = TrackableObject(objectID, centroid)
-                to.side = 1 if centroid[0] > W // 2 else -1
+                to.side = 1 if centroid[1] > LINE_Y else -1
 
             # otherwise, look for an actual line crossing. A small margin
             # keeps jitter right at the line from double-counting. Crossing
@@ -444,12 +446,11 @@ def people_counter():
             # on every crossing.
             else:
                 to.centroids.append(centroid)
-                cur_x = centroid[0]
-                line_x = W // 2
+                cur_y = centroid[1]
                 margin = 6
 
-                # was on the left, now crossed to the right -> Enter
-                if to.side == -1 and cur_x > line_x + margin:
+                # was above the line, now crossed downward -> Enter
+                if to.side == -1 and cur_y > LINE_Y + margin:
                     to.side = 1
                     totalDown += 1
                     date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -464,8 +465,8 @@ def people_counter():
                         cv2.putText(frame, "-ALERT: People limit exceeded-", (10, frame.shape[0] - 80),
                             cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 255), 2)
 
-                # was on the right, now crossed to the left -> Exit
-                elif to.side == 1 and cur_x < line_x - margin:
+                # was below the line, now crossed upward -> Exit
+                elif to.side == 1 and cur_y < LINE_Y - margin:
                     to.side = -1
                     totalUp += 1
                     date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
