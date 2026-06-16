@@ -27,12 +27,9 @@ const elements = {
     reservationCount: document.getElementById("reservation-count"),
     setAlarmButton: document.getElementById("set-alarm-btn"),
     cancelAlarmButton: document.getElementById("cancel-alarm-btn"),
-    // 추가: 예상 혼잡도 관련 요소
     forecastList: document.getElementById("forecast-list"),
-    // 추가: 대체 교통 추천 요소
     recommendSection: document.getElementById("recommend-section"),
     recommendBanner: document.getElementById("recommend-banner"),
-    // 추가: 주차장 관련 요소
     parkingFrame: document.getElementById("parking-frame"),
     parkingMessage: document.getElementById("parking-message"),
     parkingStatus: document.getElementById("parking-status"),
@@ -40,6 +37,12 @@ const elements = {
     parkingCount: document.getElementById("parking-count"),
     parkingCapacity: document.getElementById("parking-capacity"),
     parkingBar: document.getElementById("parking-bar"),
+    // New UI elements
+    donutCircle: document.getElementById("donut-circle"),
+    clock: document.getElementById("clock"),
+    dateDisplay: document.getElementById("date-display"),
+    infoMain: document.getElementById("info-main"),
+    infoSub: document.getElementById("info-sub"),
 };
 
 let selectedTime = "";
@@ -235,15 +238,42 @@ function updateDashboard(count) {
     const roundedPercent = Math.round(percent);
     const status = getStatus(percent);
 
-    elements.count.textContent = `${safeCount}명`;
+    elements.count.textContent = `${safeCount}`;
     elements.percent.textContent = `${roundedPercent}%`;
     elements.capacityText.textContent = `정원 ${MAX_WAITING_COUNT}명`;
     elements.status.textContent = status.label;
-    elements.status.className = status.className;
+    elements.status.className = `status-pill ${status.className}`;
     elements.bar.style.width = `${Math.min(percent, 100)}%`;
     elements.bar.style.background = status.color;
 
+    // Update donut chart (circumference of r=38 ≈ 238.76)
+    if (elements.donutCircle) {
+        const circ = 238.76;
+        const filled = Math.min(percent / 100, 1) * circ;
+        elements.donutCircle.style.strokeDasharray = `${filled} ${circ - filled}`;
+        elements.donutCircle.style.stroke = status.color;
+    }
+
+    // Update info box
+    updateInfoBox(percent);
     updateRecommendation(percent);
+}
+
+function updateInfoBox(percent) {
+    if (!elements.infoMain || !elements.infoSub) return;
+    if (percent >= 100) {
+        elements.infoMain.textContent = "셔틀버스가 매우 혼잡합니다.";
+        elements.infoSub.textContent  = "탑승이 어려울 수 있습니다.";
+        elements.infoMain.style.color = "#DC2626";
+    } else if (percent >= 60) {
+        elements.infoMain.textContent = "셔틀버스가 혼잡합니다.";
+        elements.infoSub.textContent  = "대체 교통편 이용을 권장합니다.";
+        elements.infoMain.style.color = "#C2410C";
+    } else {
+        elements.infoMain.textContent = "현재 셔틀버스는 여유 있습니다.";
+        elements.infoSub.textContent  = "쾌적한 탑승이 가능합니다.";
+        elements.infoMain.style.color = "#1E40AF";
+    }
 }
 
 // ─── 추가: 혼잡도에 따른 대체 교통 추천 ────────────────────────
@@ -584,10 +614,29 @@ function bindEvents() {
     });
 }
 
+// ─── 실시간 시계 ──────────────────────────────
+const DAY_KO = ["일","월","화","수","목","금","토"];
+
+function updateClock() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2, "0");
+    const mm  = String(now.getMinutes()).padStart(2, "0");
+    const ss  = String(now.getSeconds()).padStart(2, "0");
+    const yyyy = now.getFullYear();
+    const mo   = String(now.getMonth() + 1).padStart(2, "0");
+    const dd   = String(now.getDate()).padStart(2, "0");
+    const day  = DAY_KO[now.getDay()];
+
+    if (elements.clock)       elements.clock.textContent       = `${hh}:${mm}:${ss}`;
+    if (elements.dateDisplay) elements.dateDisplay.textContent = `${yyyy}.${mo}.${dd} (${day})`;
+}
+
 bindEvents();
 updateDashboard(DEFAULT_WAITING_COUNT);
 loadCountState();
-fetchReservations();   // 추가: 서버에서 예약 데이터 초기 로드
-window.setInterval(loadCountState, 1000);
-window.setInterval(fetchReservations, 3000); // 추가: 3초마다 예약 데이터 갱신
-window.setInterval(loadParkingState, 1000);   // 추가: 1초마다 주차장 현황 갱신
+fetchReservations();
+updateClock();
+window.setInterval(loadCountState,   1000);
+window.setInterval(fetchReservations, 3000);
+window.setInterval(loadParkingState, 1000);
+window.setInterval(updateClock,      1000);

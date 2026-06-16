@@ -3,91 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>셔틀버스 대기 시스템</title>
+    <title>SAHMYOOK Shuttle</title>
     <link rel="stylesheet" href="bus.css">
 </head>
 <body>
-    <main class="app-shell">
-        <header class="top-nav">
-            <a class="brand" href="#home-panel" data-view-link="home">
-                <strong>SAHMYOOK Shuttle</strong>
-            </a>
 
-            <nav class="nav-tabs" aria-label="상단 메뉴">
-                <button class="nav-tab active" type="button" data-view="home">홈</button>
-                <button class="nav-tab" type="button" data-view="camera">카메라</button>
-                <button class="nav-tab" type="button" data-view="parking">주차장</button>
-            </nav>
-        </header>
-
-        <section class="view-panel active" id="home-panel" data-panel="home" aria-labelledby="overview-title">
-            <div class="panel-head">
-                <div>
-                    <p class="eyebrow">Live Status</p>
-                    <h1 id="overview-title">셔틀버스 대기 현황</h1>
+    <!-- ═══════════════ HEADER ═══════════════ -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="brand" id="brand-link" data-view-link="home">
+                <div class="brand-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="6" width="22" height="13" rx="2"/>
+                        <path d="M1 11h22"/>
+                        <path d="M5 19v2M19 19v2"/>
+                        <path d="M5 6V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2"/>
+                        <circle cx="6.5" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+                        <circle cx="17.5" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+                    </svg>
                 </div>
-                <p class="route">화랑대역 · 태릉입구역 · 석계역</p>
+                <div class="brand-text">
+                    <span class="brand-name">SAHMYOOK Shuttle</span>
+                    <span class="brand-sub">삼육대학교 셔틀버스 실시간 대기 시스템</span>
+                </div>
             </div>
+            <nav class="site-nav" aria-label="메인 메뉴">
+                <div class="nav-group">
+                    <button class="nav-btn active" type="button" data-view="home">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                        홈
+                    </button>
+                    <button class="nav-btn" type="button" data-view="camera">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 7l-7 5 7 5V7z"/>
+                            <rect x="1" y="5" width="15" height="14" rx="2"/>
+                        </svg>
+                        카메라
+                    </button>
+                    <button class="nav-btn" type="button" data-view="parking">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
+                        </svg>
+                        주차장
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
 
-            <div class="status-layout">
-                <article class="metric-card primary">
-                    <div class="metric-label">
-                        <span>혼잡도</span>
-                        <strong id="status">여유</strong>
+    <!-- ═══════════════ MAIN ═══════════════ -->
+    <main class="site-main">
+
+        <!-- ── HOME PANEL ── -->
+        <section class="view-panel active" id="home-panel" data-panel="home">
+
+            <!-- Hero Card -->
+            <article class="hero-card">
+                <div class="hero-content">
+                    <div class="live-badge">
+                        <span class="live-dot"></span>
+                        LIVE STATUS
                     </div>
-                    <div class="percent-row">
-                        <span class="percent-value" id="percent">0%</span>
-                        <div class="status-details" aria-label="대기 인원 상세">
-                            <span class="waiting-line">현재 대기 <strong id="count">0명</strong> <em id="capacity-text">정원 60명</em></span>
+                    <h1 class="hero-title">셔틀버스 대기 현황</h1>
+                    <p class="hero-route">
+                        <svg class="pin-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+                        </svg>
+                        화랑대역 · 태릉입구역 · 석계역
+                    </p>
+                </div>
+                <div class="hero-illus" aria-hidden="true">
+                    <img src="image.png" alt="셔틀버스 일러스트">
+                    <svg viewBox="0 0 380 210" xmlns="http://www.w3.org/2000/svg" style="display:none">
+                        <!-- Background -->
+                        <rect width="380" height="210" fill="#EBF4FF"/>
+
+                        <!-- Buildings (far background) -->
+                        <rect x="270" y="50"  width="30" height="140" rx="3" fill="#C5D9EF" opacity=".7"/>
+                        <rect x="295" y="35"  width="22" height="155" rx="3" fill="#B8CEEA" opacity=".7"/>
+                        <rect x="312" y="60"  width="28" height="130" rx="3" fill="#CCDDF2" opacity=".7"/>
+                        <rect x="335" y="45"  width="25" height="145" rx="3" fill="#BFD1EC" opacity=".7"/>
+                        <rect x="355" y="70"  width="25" height="120" rx="3" fill="#C8D8F0" opacity=".7"/>
+                        <!-- Building windows -->
+                        <rect x="275" y="58"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="287" y="58"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="275" y="74"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="287" y="74"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="300" y="43"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="300" y="59"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="300" y="75"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="318" y="68"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="318" y="84"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="341" y="53"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+                        <rect x="341" y="69"  width="8" height="9" rx="1" fill="#E0EDFF" opacity=".9"/>
+
+                        <!-- Trees left -->
+                        <rect x="18"  y="148" width="7" height="36" rx="3" fill="#5A8A38"/>
+                        <ellipse cx="21"  cy="138" rx="22" ry="24" fill="#6DB33F"/>
+                        <ellipse cx="21"  cy="130" rx="16" ry="18" fill="#7DC944"/>
+
+                        <rect x="52"  y="152" width="7" height="32" rx="3" fill="#5A8A38"/>
+                        <ellipse cx="55"  cy="140" rx="20" ry="22" fill="#78C43C"/>
+                        <ellipse cx="55"  cy="132" rx="14" ry="16" fill="#8ACE4A"/>
+
+                        <!-- Trees right of bus -->
+                        <rect x="242" y="148" width="7" height="36" rx="3" fill="#5A8A38"/>
+                        <ellipse cx="245" cy="137" rx="22" ry="24" fill="#6DB33F"/>
+                        <ellipse cx="245" cy="129" rx="16" ry="18" fill="#7DC944"/>
+
+                        <!-- Road -->
+                        <rect x="0"   y="172" width="380" height="38" fill="#D1D9E6"/>
+                        <rect x="0"   y="172" width="380" height="5"  fill="#BEC8D6"/>
+                        <!-- Road dashes -->
+                        <rect x="10"  y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+                        <rect x="72"  y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+                        <rect x="134" y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+                        <rect x="196" y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+                        <rect x="258" y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+                        <rect x="320" y="186" width="40" height="5" rx="2.5" fill="white" opacity=".5"/>
+
+                        <!-- Bus stop pole -->
+                        <rect x="162" y="88" width="5" height="84" rx="2" fill="#94A3B8"/>
+                        <!-- Bus stop sign circle -->
+                        <circle cx="164" cy="80" r="20" fill="#1D4ED8"/>
+                        <circle cx="164" cy="80" r="16" fill="white" opacity=".15"/>
+                        <!-- Bus icon inside sign -->
+                        <rect x="155" y="73" width="18" height="12" rx="3" fill="white"/>
+                        <rect x="157" y="76" width="4"  height="5"  rx="1" fill="#1D4ED8"/>
+                        <rect x="163" y="76" width="4"  height="5"  rx="1" fill="#1D4ED8"/>
+                        <rect x="169" y="76" width="3"  height="5"  rx="1" fill="#1D4ED8"/>
+                        <circle cx="158" cy="86" r="2"  fill="white"/>
+                        <circle cx="170" cy="86" r="2"  fill="white"/>
+
+                        <!-- ── BUS BODY (white coach style) ── -->
+                        <!-- Main body -->
+                        <rect x="72"  y="105" width="178" height="68" rx="12" fill="white"/>
+                        <!-- Top blue band -->
+                        <rect x="72"  y="105" width="178" height="18" rx="12" fill="#1D4ED8"/>
+                        <rect x="72"  y="115" width="178" height="8"  fill="#1D4ED8"/>
+                        <!-- Body outline -->
+                        <rect x="72"  y="105" width="178" height="68" rx="12" fill="none" stroke="#CBD5E1" stroke-width="1.5"/>
+
+                        <!-- Windows (4 side windows) -->
+                        <rect x="80"  y="124" width="28" height="20" rx="4" fill="#DBEAFE"/>
+                        <rect x="114" y="124" width="28" height="20" rx="4" fill="#DBEAFE"/>
+                        <rect x="148" y="124" width="28" height="20" rx="4" fill="#DBEAFE"/>
+                        <rect x="182" y="124" width="28" height="20" rx="4" fill="#DBEAFE"/>
+
+                        <!-- Front section -->
+                        <rect x="218" y="108" width="32" height="62" rx="10" fill="#EFF6FF"/>
+                        <rect x="218" y="108" width="32" height="62" rx="10" fill="none" stroke="#CBD5E1" stroke-width="1"/>
+                        <!-- Windshield -->
+                        <rect x="221" y="112" width="26" height="28" rx="5" fill="#BFDBFE"/>
+                        <!-- Headlight -->
+                        <rect x="221" y="145" width="12" height="8"  rx="2" fill="#FEF08A"/>
+                        <rect x="236" y="145" width="8"  height="8"  rx="2" fill="#FEF08A" opacity=".6"/>
+
+                        <!-- SAHMYOOK text on bus -->
+                        <text x="148" y="152" text-anchor="middle" font-size="9.5" fill="#94A3B8" font-family="Arial,sans-serif" font-weight="700" letter-spacing="1">SAHMYOOK</text>
+
+                        <!-- Bottom strip / underbody -->
+                        <rect x="80"  y="166" width="130" height="7" rx="3" fill="#E2E8F0"/>
+
+                        <!-- Wheels -->
+                        <circle cx="108" cy="173" r="11" fill="#334155"/>
+                        <circle cx="108" cy="173" r="6"  fill="#64748B"/>
+                        <circle cx="108" cy="173" r="2.5" fill="#94A3B8"/>
+                        <circle cx="210" cy="173" r="11" fill="#334155"/>
+                        <circle cx="210" cy="173" r="6"  fill="#64748B"/>
+                        <circle cx="210" cy="173" r="2.5" fill="#94A3B8"/>
+
+                        <!-- Door -->
+                        <rect x="192" y="136" width="14" height="28" rx="3" fill="#EFF6FF" stroke="#CBD5E1" stroke-width="1"/>
+                        <line x1="199" y1="136" x2="199" y2="164" stroke="#CBD5E1" stroke-width="1"/>
+                    </svg>
+                </div>
+            </article>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid">
+
+                <!-- LEFT: Congestion + Waiting -->
+                <article class="card stat-main-card">
+                    <div class="stat-card-inner">
+
+                        <!-- Congestion section -->
+                        <div class="cong-section">
+                            <div class="section-label">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                                </svg>
+                                혼잡도
+                            </div>
+                            <div class="cong-body">
+                                <div class="cong-numbers">
+                                    <div class="big-percent" id="percent">0%</div>
+                                    <div class="status-pill" id="status">여유</div>
+                                </div>
+                                <div class="donut-wrap" aria-hidden="true">
+                                    <svg class="donut-svg" viewBox="0 0 100 100">
+                                        <circle class="donut-track"    cx="50" cy="50" r="38"/>
+                                        <circle class="donut-progress" cx="50" cy="50" r="38" id="donut-circle"/>
+                                        <g transform="rotate(90 50 50)">
+                                            <text x="50" y="55" text-anchor="middle" font-size="22" class="donut-center-icon">👥</text>
+                                        </g>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="bar"></div>
+                            </div>
+                            <div class="info-box">
+                                <svg class="info-svg" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                <div class="info-text">
+                                    <div class="info-main" id="info-main">현재 셔틀버스는 여유 있습니다.</div>
+                                    <div class="info-sub"  id="info-sub">쾌적한 탑승이 가능합니다.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-vdivider"></div>
+
+                        <!-- Waiting section -->
+                        <div class="wait-section">
+                            <div class="section-label">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="1" y="6" width="22" height="13" rx="2"/>
+                                    <path d="M1 11h22M5 19v2M19 19v2"/>
+                                    <path d="M5 6V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2"/>
+                                </svg>
+                                현재 대기
+                            </div>
+                            <div class="big-count">
+                                <span id="count">0</span>명
+                            </div>
+                            <div class="capacity-info" id="capacity-text">정원 60명</div>
                         </div>
                     </div>
-                    <div class="bar" aria-hidden="true">
-                        <div class="bar-fill" id="bar"></div>
+                </article>
+
+                <!-- RIGHT: Route + Time + Notice -->
+                <article class="card stat-side-card">
+                    <!-- Route -->
+                    <div class="route-section">
+                        <div class="section-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5"  r="3"/>
+                                <circle cx="6"  cy="12" r="3"/>
+                                <circle cx="18" cy="19" r="3"/>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                                <line x1="15.41" y1="6.51" x2="8.59"  y2="10.49"/>
+                            </svg>
+                            운행 노선
+                        </div>
+                        <div class="route-body">
+                            <div class="stops-list">
+                                <div class="stop-item"><span class="stop-dot"></span> 화랑대역</div>
+                                <div class="stop-item"><span class="stop-dot"></span> 태릉입구역</div>
+                                <div class="stop-item"><span class="stop-dot"></span> 석계역</div>
+                            </div>
+                            <div class="route-map" aria-hidden="true">
+                                <svg viewBox="0 0 160 130" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="hLine" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%"   stop-color="#1D4ED8"/>
+                                            <stop offset="100%" stop-color="#60A5FA"/>
+                                        </linearGradient>
+                                        <filter id="glow">
+                                            <feGaussianBlur stdDeviation="2" result="blur"/>
+                                            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                        </filter>
+                                    </defs>
+
+                                    <!-- Background -->
+                                    <rect width="160" height="130" rx="12" fill="#EEF4FF"/>
+
+                                    <!-- Subtle grid lines -->
+                                    <line x1="0" y1="43"  x2="160" y2="43"  stroke="#D8E6FF" stroke-width="1"/>
+                                    <line x1="0" y1="87"  x2="160" y2="87"  stroke="#D8E6FF" stroke-width="1"/>
+                                    <line x1="40" y1="0"  x2="40"  y2="130" stroke="#D8E6FF" stroke-width="1"/>
+                                    <line x1="80" y1="0"  x2="80"  y2="130" stroke="#D8E6FF" stroke-width="1"/>
+                                    <line x1="120" y1="0" x2="120" y2="130" stroke="#D8E6FF" stroke-width="1"/>
+
+                                    <!-- Route path (curved) -->
+                                    <path d="M24 100 C40 100 50 65 80 65 C110 65 120 30 136 30"
+                                          stroke="url(#hLine)" stroke-width="3.5"
+                                          stroke-linecap="round" fill="none" filter="url(#glow)"/>
+
+                                    <!-- Shadow dots -->
+                                    <circle cx="24"  cy="100" r="10" fill="#1D4ED8" opacity=".15"/>
+                                    <circle cx="80"  cy="65"  r="10" fill="#1D4ED8" opacity=".15"/>
+                                    <circle cx="136" cy="30"  r="10" fill="#1D4ED8" opacity=".15"/>
+
+                                    <!-- Station 1: 화랑대역 (bottom-left) -->
+                                    <circle cx="24" cy="100" r="7" fill="white" stroke="#1D4ED8" stroke-width="2.5"/>
+                                    <circle cx="24" cy="100" r="3.5" fill="#1D4ED8"/>
+                                    <text x="24" y="116" text-anchor="middle" font-size="8.5"
+                                          font-weight="700" fill="#334155" font-family="Arial,sans-serif">화랑대역</text>
+
+                                    <!-- Station 2: 태릉입구역 (middle) -->
+                                    <circle cx="80" cy="65" r="7" fill="white" stroke="#2563EB" stroke-width="2.5"/>
+                                    <circle cx="80" cy="65" r="3.5" fill="#2563EB"/>
+                                    <text x="80" y="81" text-anchor="middle" font-size="8.5"
+                                          font-weight="700" fill="#334155" font-family="Arial,sans-serif">태릉입구역</text>
+
+                                    <!-- Station 3: 석계역 (top-right) -->
+                                    <circle cx="136" cy="30" r="7" fill="white" stroke="#60A5FA" stroke-width="2.5"/>
+                                    <circle cx="136" cy="30" r="3.5" fill="#60A5FA"/>
+                                    <text x="136" y="46" text-anchor="middle" font-size="8.5"
+                                          font-weight="700" fill="#334155" font-family="Arial,sans-serif">석계역</text>
+
+                                    <!-- Bus moving on route -->
+                                    <circle cx="52" cy="84" r="12" fill="#1D4ED8"/>
+                                    <text x="52" y="89" text-anchor="middle" font-size="13">🚌</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom two-box row -->
+                    <div class="side-bottom">
+                        <div class="update-box">
+                            <div class="section-label">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <polyline points="1 20 1 14 7 14"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
+                                실시간 업데이트
+                            </div>
+                            <div class="clock-display" id="clock">--:--:--</div>
+                            <div class="date-display"  id="date-display">----.--.-- (-)</div>
+                        </div>
+                        <div class="notice-box">
+                            <div class="section-label">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                                </svg>
+                                안내사항
+                            </div>
+                            <p class="notice-text">셔틀버스는 실시간 혼잡도에 따라 탄력적으로 운영됩니다. 안전하고 편안한 이용 바랍니다.</p>
+                        </div>
                     </div>
                 </article>
             </div>
 
-            <!-- 추가: 혼잡 시 대체 교통수단 추천 (정적). 아래 노선/대여소 정보는 실제 값으로 수정하세요. -->
-            <section class="recommend-section calm" id="recommend-section" aria-labelledby="recommend-title">
-                <div class="recommend-head">
-                    <p class="eyebrow">Alternative Transit</p>
-                    <h2 id="recommend-title">대체 교통수단 추천</h2>
-                    <p class="recommend-banner" id="recommend-banner">셔틀버스 혼잡도에 따라 추천을 표시합니다.</p>
-                </div>
-                <div class="recommend-list">
-                    <article class="recommend-card">
-                        <div class="recommend-icon" aria-hidden="true">🚇</div>
-                        <div class="recommend-body">
-                            <h3>지하철</h3>
-                            <p class="recommend-main">6호선 화랑대역 · 태릉입구역(6·7호선) · 석계역(1·6호선)</p>
-                            <p class="recommend-sub">정시 운행이라 혼잡 시 가장 안정적</p>
-                        </div>
-                    </article>
-                    <article class="recommend-card">
-                        <div class="recommend-icon" aria-hidden="true">🚌</div>
-                        <div class="recommend-body">
-                            <h3>시내버스</h3>
-                            <p class="recommend-main">2155 · 202번 (삼육대입구 ↔ 화랑대역)</p>
-                            <p class="recommend-sub">배차 약 10~15분 · 정류장: 삼육대앞</p>
-                        </div>
-                    </article>
-                    <article class="recommend-card">
-                        <div class="recommend-icon" aria-hidden="true">🚲</div>
-                        <div class="recommend-body">
-                            <h3>따릉이</h3>
-                            <p class="recommend-main">삼육대 도서관 · 삼육대 제3과학관 대여소</p>
-                            <p class="recommend-sub">가까운 역까지 단거리 이동에 적합</p>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
+            <!-- Schedule Section -->
             <section class="schedule-section" aria-labelledby="schedule-title">
-                <div>
-                    <p class="eyebrow">Timetable</p>
-                    <h2 id="schedule-title">셔틀버스 시간표</h2>
+                <div class="schedule-head">
+                    <div>
+                        <p class="eyebrow">Timetable</p>
+                        <h2 id="schedule-title">셔틀버스 시간표</h2>
+                    </div>
+                    <p class="schedule-hint">시간을 누르면 출발 알림을 설정합니다.</p>
                 </div>
-                <p class="route">시간을 누르면 출발 알림을 설정합니다.</p>
 
                 <div class="schedule-grid">
                     <article class="schedule-group">
@@ -154,7 +431,7 @@
                         <div class="time-rows" aria-label="금요일 운행 시간">
                             <div class="time-row">
                                 <span class="hour-label">12시</span>
-                                <div class="time-list compact">
+                                <div class="time-list">
                                     <button class="time" type="button">12:00</button>
                                     <button class="time" type="button">12:25</button>
                                     <button class="time" type="button">12:50</button>
@@ -162,21 +439,21 @@
                             </div>
                             <div class="time-row">
                                 <span class="hour-label">13시</span>
-                                <div class="time-list compact">
+                                <div class="time-list">
                                     <button class="time" type="button">13:15</button>
                                     <button class="time" type="button">13:40</button>
                                 </div>
                             </div>
                             <div class="time-row">
                                 <span class="hour-label">14시</span>
-                                <div class="time-list compact">
+                                <div class="time-list">
                                     <button class="time" type="button">14:05</button>
                                     <button class="time" type="button">14:30</button>
                                 </div>
                             </div>
                             <div class="time-row">
                                 <span class="hour-label">15시</span>
-                                <div class="time-list compact">
+                                <div class="time-list">
                                     <button class="time" type="button">15:00</button>
                                     <button class="time" type="button">15:20</button>
                                     <button class="time" type="button">15:30</button>
@@ -188,68 +465,75 @@
                 </div>
             </section>
 
-            <!-- 추가: 시간대별 예상 혼잡도 섹션 -->
+            <!-- Forecast Section -->
             <section class="forecast-section" aria-labelledby="forecast-title">
                 <div class="forecast-head">
                     <p class="eyebrow">Reservation Forecast</p>
                     <h2 id="forecast-title">시간대별 예상 혼잡도</h2>
                     <p class="forecast-desc">알림을 설정한 인원 수를 기반으로 예상 혼잡도를 표시합니다.</p>
                 </div>
-                <div class="forecast-list" id="forecast-list">
-                    <!-- JS로 동적 생성 -->
-                </div>
+                <div class="forecast-list" id="forecast-list"></div>
             </section>
+
+            <!-- Hidden — kept for JS compatibility -->
+            <div id="recommend-section" class="recommend-section calm" style="display:none" aria-hidden="true">
+                <p id="recommend-banner"></p>
+            </div>
+
         </section>
 
-        <section class="view-panel" id="camera-panel" data-panel="camera" aria-labelledby="camera-title">
-            <div class="panel-head">
-                <div>
-                    <p class="eyebrow">Live Monitor</p>
-                    <h1 id="camera-title">실시간 카메라</h1>
+        <!-- ── CAMERA PANEL ── -->
+        <section class="view-panel" id="camera-panel" data-panel="camera">
+            <div class="panel-inner">
+                <div class="panel-head">
+                    <div>
+                        <p class="eyebrow">Live Monitor</p>
+                        <h1>실시간 카메라</h1>
+                    </div>
+                    <p class="panel-sub">실행화면</p>
                 </div>
-                <p class="route">실행화면</p>
-            </div>
-
-            <div class="camera-box">
-                <p id="monitor-message">카메라화면을 기다리는 중입니다.</p>
-                <img id="monitor-frame" src="" alt="카메라화면">
+                <div class="camera-box">
+                    <p id="monitor-message">카메라화면을 기다리는 중입니다.</p>
+                    <img id="monitor-frame" src="" alt="카메라화면">
+                </div>
             </div>
         </section>
 
-        <section class="view-panel" id="parking-panel" data-panel="parking" aria-labelledby="parking-title">
-            <div class="panel-head">
-                <div>
-                    <p class="eyebrow">Parking Status</p>
-                    <h1 id="parking-title">주차장 현황</h1>
+        <!-- ── PARKING PANEL ── -->
+        <section class="view-panel" id="parking-panel" data-panel="parking">
+            <div class="panel-inner">
+                <div class="panel-head">
+                    <div>
+                        <p class="eyebrow">Parking Status</p>
+                        <h1>주차장 현황</h1>
+                    </div>
+                    <p class="panel-sub">실시간 입출차 모니터링</p>
                 </div>
-                <p class="route">실시간 입출차 모니터링</p>
-            </div>
-
-            <div class="status-layout">
-                <article class="metric-card primary">
+                <div class="card parking-metric">
                     <div class="metric-label">
                         <span>주차 가능</span>
                         <strong id="parking-status">여유</strong>
                     </div>
                     <div class="percent-row">
                         <span class="percent-value" id="parking-available">0</span>
-                        <div class="status-details" aria-label="주차 현황 상세">
+                        <div class="status-details">
                             <span class="waiting-line">현재 주차 <strong id="parking-count">0대</strong> <em id="parking-capacity">전체 0면</em></span>
                         </div>
                     </div>
-                    <div class="bar" aria-hidden="true">
+                    <div class="bar">
                         <div class="bar-fill" id="parking-bar"></div>
                     </div>
-                </article>
-            </div>
-
-            <div class="camera-box">
-                <p id="parking-message">주차장 영상을 기다리는 중입니다.</p>
-                <img id="parking-frame" src="" alt="주차장 영상">
+                </div>
+                <div class="camera-box parking-cam">
+                    <p id="parking-message">주차장 영상을 기다리는 중입니다.</p>
+                    <img id="parking-frame" src="" alt="주차장 영상">
+                </div>
             </div>
         </section>
+
     </main>
 
+    <!-- ═══════════════ POPUP ═══════════════ -->
     <div class="popup" id="popup" role="dialog" aria-modal="true" aria-labelledby="popup-title">
         <div class="popup-box">
             <p class="eyebrow">Departure Alert</p>
@@ -258,12 +542,12 @@
             <p class="reservation-count" id="reservation-count">현재 예약 0명</p>
             <div class="popup-actions">
                 <button class="secondary-btn" id="cancel-alarm-btn" type="button">취소</button>
-                <button class="primary-btn" id="set-alarm-btn" type="button">설정</button>
+                <button class="primary-btn"   id="set-alarm-btn"    type="button">설정</button>
             </div>
         </div>
     </div>
 
-    <!-- 추가: 토스트 알림 컨테이너 -->
+    <!-- ═══════════════ TOAST ═══════════════ -->
     <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
     <script src="bus.js"></script>
