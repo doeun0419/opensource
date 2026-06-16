@@ -34,6 +34,22 @@ with open("utils/config.json", "r") as file:
 COUNT_STATE_PATH = "utils/data/count_state.json"
 RESERVATION_PATH = "utils/data/reservations.json"
 COUNT_LOG_PATH = "utils/data/logs/counting_data.csv"
+SHUTTLE_CAPACITY = 60
+MONDAY_THURSDAY_DEPARTURES = {
+    "12:00", "12:25", "12:50",
+    "13:15", "13:40",
+    "14:05", "14:30",
+    "15:00", "15:20", "15:40",
+    "16:00", "16:20", "16:40",
+    "17:00", "17:20", "17:40",
+    "18:00", "18:15",
+}
+FRIDAY_DEPARTURES = {
+    "12:00", "12:25", "12:50",
+    "13:15", "13:40",
+    "14:05", "14:30",
+    "15:00", "15:20", "15:30",
+}
 latest_web_frame = None
 latest_web_frame_lock = threading.Lock()
 reservation_lock = threading.Lock()
@@ -72,6 +88,8 @@ def parse_arguments():
         help="deprecated; browser-only view is now the default")
     ap.add_argument("--no-loop", action="store_true",
         help="stop when the input video ends instead of looping it")
+    ap.add_argument("--departure-times", type=str,
+        help="comma-separated HH:MM departure times for testing; overrides the default timetable")
     args = vars(ap.parse_args())
     return args
 
@@ -100,6 +118,52 @@ def write_count_state(event, total_enter, total_exit, current_inside, timestamp)
     os.makedirs(os.path.dirname(COUNT_STATE_PATH), exist_ok=True)
     with open(COUNT_STATE_PATH, "w") as file:
         json.dump(payload, file)
+
+def parse_departure_times(value):
+    if not value:
+        return None
+
+    times = {time_value.strip() for time_value in value.split(",") if time_value.strip()}
+    for time_value in times:
+        try:
+            datetime.datetime.strptime(time_value, "%H:%M")
+        except ValueError as error:
+            raise ValueError(f"Invalid departure time '{time_value}'. Use HH:MM.") from error
+    return times
+
+def get_departure_times(now, override_departures=None):
+    if override_departures is not None:
+        return override_departures
+
+    weekday = now.weekday()
+    if weekday <= 3:
+        return MONDAY_THURSDAY_DEPARTURES
+    if weekday == 4:
+        return FRIDAY_DEPARTURES
+    return set()
+
+def get_waiting_count(move_in, move_out, boarded_total):
+    raw_count = len(move_in) - len(move_out) - boarded_total
+    return max(0, raw_count)
+
+def board_shuttle_if_due(now, served_departures, boarded_total, move_in, move_out, total_enter, total_exit, override_departures=None):
+    time_key = now.strftime("%H:%M")
+    departure_key = now.strftime("%Y-%m-%d %H:%M")
+
+    if time_key not in get_departure_times(now, override_departures) or departure_key in served_departures:
+        return boarded_total
+
+    current_inside = get_waiting_count(move_in, move_out, boarded_total)
+    boarded = min(SHUTTLE_CAPACITY, current_inside)
+    boarded_total += boarded
+    served_departures.add(departure_key)
+
+    timestamp = now.strftime("%Y-%m-%d %H:%M")
+    current_inside = get_waiting_count(move_in, move_out, boarded_total)
+    write_count_state("bus_departure", total_enter, total_exit, current_inside, timestamp)
+    send_count_update("bus_departure", total_enter, total_exit, current_inside, timestamp)
+    logger.info("Bus departure %s: boarded %s, waiting %s", time_key, boarded, current_inside)
+    return boarded_total
 
 class StreamingServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
@@ -299,6 +363,7 @@ def send_count_update(event, total_enter, total_exit, current_inside, timestamp)
 def people_counter():
     # main function for people_counter.py
     args = parse_arguments()
+    override_departures = parse_departure_times(args.get("departure_times"))
     start_web_stream_server()
     # initialize the list of class labels MobileNet SSD was trained to detect
     CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
@@ -345,6 +410,8 @@ def people_counter():
     move_in =[]
     out_time = []
     in_time = []
+    boarded_total = 0
+    served_departures = set()
     write_count_state("init", totalDown, totalUp, 0, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     # start the frames per second throughput estimator
@@ -378,9 +445,21 @@ def people_counter():
             move_out = []
             in_time = []
             out_time = []
+            boarded_total = 0
             write_count_state("init", totalDown, totalUp, 0,
                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
             continue
+
+        boarded_total = board_shuttle_if_due(
+            datetime.datetime.now(),
+            served_departures,
+            boarded_total,
+            move_in,
+            move_out,
+            totalDown,
+            totalUp,
+            override_departures
+        )
 
         # resize the frame to have a maximum width of 500 pixels
         # (the less data we have, the faster we can process it)
@@ -470,7 +549,7 @@ def people_counter():
                     date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                     move_in.append(totalDown)
                     in_time.append(date_time)
-                    current_inside = len(move_in) - len(move_out)
+                    current_inside = get_waiting_count(move_in, move_out, boarded_total)
                     total = [current_inside]
                     write_count_state("enter", totalDown, totalUp, current_inside, date_time)
                     send_count_update("enter", totalDown, totalUp, current_inside, date_time)
@@ -486,7 +565,7 @@ def people_counter():
                     date_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                     move_out.append(totalUp)
                     out_time.append(date_time)
-                    current_inside = len(move_in) - len(move_out)
+                    current_inside = get_waiting_count(move_in, move_out, boarded_total)
                     total = [current_inside]
                     write_count_state("exit", totalDown, totalUp, current_inside, date_time)
                     send_count_update("exit", totalDown, totalUp, current_inside, date_time)
