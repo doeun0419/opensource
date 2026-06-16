@@ -8,7 +8,6 @@ import numpy as np
 import threading
 import argparse
 import datetime
-import schedule
 import logging
 import imutils
 import time
@@ -34,6 +33,7 @@ with open("utils/config.json", "r") as file:
 
 COUNT_STATE_PATH = "utils/data/count_state.json"
 RESERVATION_PATH = "utils/data/reservations.json"
+COUNT_LOG_PATH = "utils/data/logs/counting_data.csv"
 latest_web_frame = None
 latest_web_frame_lock = threading.Lock()
 reservation_lock = threading.Lock()
@@ -66,8 +66,10 @@ def parse_arguments():
         help="minimum probability to filter weak detections")
     ap.add_argument("-s", "--skip-frames", type=int, default=2,
         help="# of skip frames between detections")
+    ap.add_argument("--window", action="store_true",
+        help="open the OpenCV desktop preview window")
     ap.add_argument("--no-window", action="store_true",
-        help="don't open the OpenCV desktop window; serve the browser view only")
+        help="deprecated; browser-only view is now the default")
     ap.add_argument("--no-loop", action="store_true",
         help="stop when the input video ends instead of looping it")
     args = vars(ap.parse_args())
@@ -79,7 +81,8 @@ def log_data(move_in, in_time, move_out, out_time):
     # transpose the data to align the columns properly
     export_data = zip_longest(*data, fillvalue = '')
 
-    with open('utils/data/logs/counting_data.csv', 'w', newline = '') as myfile:
+    os.makedirs(os.path.dirname(COUNT_LOG_PATH), exist_ok=True)
+    with open(COUNT_LOG_PATH, 'w', newline = '') as myfile:
         wr = csv.writer(myfile, quoting = csv.QUOTE_ALL)
         if myfile.tell() == 0: # check if header rows are already existing
             wr.writerow(("Move In", "In Time", "Move Out", "Out Time"))
@@ -102,6 +105,11 @@ class StreamingServer(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
 class StreamingHandler(BaseHTTPRequestHandler):
+    def send_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path == "/video_feed":
@@ -120,13 +128,18 @@ class StreamingHandler(BaseHTTPRequestHandler):
         self.send_response(404)
         self.end_headers()
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.send_cors_headers()
+        self.end_headers()
+
     def serve_reservations(self):
         with reservation_lock:
             data = read_reservations()
         body = json.dumps(data).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -147,7 +160,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
         response = json.dumps(data).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_cors_headers()
         self.end_headers()
         self.wfile.write(response)
 
@@ -156,6 +169,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
         self.send_header("Age", "0")
         self.send_header("Cache-Control", "no-cache, private")
         self.send_header("Pragma", "no-cache")
+        self.send_cors_headers()
         self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
         self.end_headers()
 
@@ -207,6 +221,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_types.get(extension, "application/octet-stream"))
         self.send_header("Cache-Control", "no-cache")
+        self.send_cors_headers()
         self.end_headers()
 
         with open(file_path, "rb") as file:
@@ -315,8 +330,7 @@ def people_counter():
     LINE_Y = None
 
     # instantiate our centroid tracker, then initialize a list to store
-    # each of our dlib correlation trackers, followed by a dictionary to
-    # map each unique object ID to a TrackableObject
+    # track each detected object across frames
     ct = CentroidTracker(maxDisappeared=25, maxDistance=110)
     trackableObjects = {}
 
@@ -517,9 +531,9 @@ def people_counter():
 
         update_web_frame(frame)
 
-        # show the output frame (skip the desktop window in --no-window mode,
-        # e.g. when you only want the browser view at http://localhost:8001)
-        if not args.get("no_window"):
+        # Browser view is the default; use --window only when a desktop
+        # OpenCV preview is useful during debugging.
+        if args.get("window") and not args.get("no_window"):
             cv2.imshow("Real-Time Monitoring/Analysis Window", frame)
             key = cv2.waitKey(1) & 0xFF
             # if the `q` key was pressed, break from the loop
@@ -550,11 +564,17 @@ def people_counter():
     # close any open windows
     cv2.destroyAllWindows()
 
+def run_daily_at(hour=9, minute=0):
+    while True:
+        now = datetime.datetime.now()
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if target <= now:
+            target += datetime.timedelta(days=1)
+        time.sleep((target - now).total_seconds())
+        people_counter()
+
 # initiate the scheduler
 if config["Scheduler"]:
-    # runs at every day (09:00 am)
-    schedule.every().day.at("09:00").do(people_counter)
-    while True:
-        schedule.run_pending()
+    run_daily_at(9, 0)
 else:
     people_counter()

@@ -239,8 +239,10 @@ def parse_arguments():
                     help=f"SSD 최소 신뢰도 (기본: {CONFIDENCE})")
     ap.add_argument("--port", type=int, default=8002,
                     help="MJPEG 스트림 서버 포트 (기본: 8002)")
+    ap.add_argument("--window", action="store_true",
+                    help="OpenCV 미리보기 창을 띄움")
     ap.add_argument("--no-window", action="store_true",
-                    help="OpenCV 미리보기 창을 띄우지 않음")
+                    help="deprecated; 웹 화면만 띄우는 것이 기본값")
     ap.add_argument("--no-loop", action="store_true",
                     help="영상 끝에서 반복 재생하지 않고 종료")
     return vars(ap.parse_args())
@@ -269,7 +271,10 @@ def main():
 
     write_parking_state(TOTAL_SLOTS, 0, TOTAL_SLOTS)
     print(f"[INFO] 처리 시작 (구역 x[{ZONE_X1},{ZONE_X2}] y[{ZONE_Y1},{ZONE_Y2}], 총 {TOTAL_SLOTS}면)")
-    print("[INFO] 종료하려면 미리보기 창에서 q 를 누르세요.")
+    if args["window"] and not args["no_window"]:
+        print("[INFO] 종료하려면 미리보기 창에서 q 를 누르세요.")
+    else:
+        print("[INFO] 웹 화면으로만 실행 중입니다. 미리보기 창은 --window 옵션으로 켤 수 있습니다.")
 
     while True:
         ret, frame_orig = cap.read()
@@ -296,7 +301,7 @@ def main():
         frame = draw_overlay(frame, last_cars, parked, available)
         update_web_frame(frame)
 
-        if not args["no_window"]:
+        if args["window"] and not args["no_window"]:
             cv2.imshow("Parking Management System", frame)
             if (cv2.waitKey(1) & 0xFF) == ord("q"):
                 break
@@ -304,7 +309,7 @@ def main():
         tf_count += 1
 
     cap.release()
-    if not args["no_window"]:
+    if args["window"] and not args["no_window"]:
         cv2.destroyAllWindows()
     write_parking_state(TOTAL_SLOTS, parked, max(TOTAL_SLOTS - parked, 0))
 

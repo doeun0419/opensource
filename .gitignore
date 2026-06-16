@@ -1,5 +1,6 @@
 # Runtime logs
 logs_*.txt
+utils/data/logs/*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

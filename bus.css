@@ -71,8 +71,14 @@ h1, h2, h3, p { margin: 0; }
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
 }
-.brand-icon-box svg { width: 26px; height: 26px; color: white; }
+.brand-icon-box img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+    display: block;
+}
 
 .brand-name {
     display: block;
@@ -197,7 +203,6 @@ h1, h2, h3, p { margin: 0; }
 
 .hero-illus { width: 380px; flex-shrink: 0; }
 .hero-illus img { width: 100%; height: auto; display: block; object-fit: contain; }
-.hero-illus svg { width: 100%; height: auto; display: block; }
 
 /* ═══ STATS GRID ════════════════════════════ */
 
@@ -682,15 +687,24 @@ h1, h2, h3, p { margin: 0; }
 @keyframes toast-in  { from { opacity:0; transform:translateX(32px); } to { opacity:1; transform:translateX(0); } }
 @keyframes toast-out { from { opacity:1; transform:translateX(0); }  to { opacity:0; transform:translateX(32px); } }
 
-.toast-item.toast-info    { background:rgba(59,130,246,.07);  border-color:rgba(59,130,246,.28); }
-.toast-item.toast-warning { background:rgba(230,100,0,.07);   border-color:rgba(230,100,0,.25); }
-.toast-item.toast-danger  { background:rgba(200,30,30,.07);   border-color:rgba(200,30,30,.22); }
+.toast-item.toast-info    { background:#F4F9FE; border-color:rgba(59,130,246,.28); }
+.toast-item.toast-warning { background:#FFF7ED; border-color:rgba(230,100,0,.25); }
+.toast-item.toast-danger  { background:#FEF2F2; border-color:rgba(200,30,30,.22); }
 
 .toast-icon {
-    width: 34px; height: 34px;
+    width: 40px; height: 40px;
     border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; font-size: 17px;
+}
+.toast-icon svg {
+    width: 28px;
+    height: 28px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 .toast-info    .toast-icon { background:rgba(59,130,246,.12); color:#1D4ED8; }
 .toast-warning .toast-icon { background:rgba(230,100,0,.12);  color:#b85000; }

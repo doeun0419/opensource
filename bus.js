@@ -1,8 +1,7 @@
-const MONITOR_STREAM_URL = "/video_feed";
+const PEOPLE_COUNTER_PORT = "8001";
 const COUNT_STATE_URL = "utils/data/count_state.json";
 const MAX_WAITING_COUNT = 60;
 const DEFAULT_WAITING_COUNT = 30;
-const RESERVATION_STORAGE_KEY = "shuttleReservationCounts";
 
 // 주차장: parking_counter.py 가 별도 포트(기본 8002)에서 스트리밍
 const PARKING_STREAM_PORT = 8002;
@@ -46,6 +45,22 @@ const elements = {
 };
 
 let selectedTime = "";
+let activeView = "home";
+
+function getPeopleCounterBaseUrl() {
+    const localHosts = ["localhost", "127.0.0.1", ""];
+    const isLocalHost = localHosts.includes(window.location.hostname);
+
+    if (window.location.protocol === "file:" || (isLocalHost && window.location.port !== PEOPLE_COUNTER_PORT)) {
+        return `http://localhost:${PEOPLE_COUNTER_PORT}`;
+    }
+
+    return "";
+}
+
+function getPeopleCounterUrl(path) {
+    return `${getPeopleCounterBaseUrl()}${path}`;
+}
 
 // ─── 예약 데이터 관련 (서버 API 사용) ──────────────────────────
 
@@ -54,7 +69,7 @@ let reservationCache = {};
 
 async function fetchReservations() {
     try {
-        const res = await fetch("/reservations?t=" + Date.now());
+        const res = await fetch(`${getPeopleCounterUrl("/reservations")}?t=${Date.now()}`);
         if (!res.ok) return;
         reservationCache = await res.json();
         updateForecast();
@@ -79,7 +94,7 @@ function updateReservationCount(time) {
 
 async function addReservation(time) {
     try {
-        const res = await fetch("/reservations", {
+        const res = await fetch(getPeopleCounterUrl("/reservations"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ time, action: "add" }),
@@ -189,7 +204,7 @@ function restoreAlarmButtons() {
 }
 
 function removeReservation(time) {
-    fetch("/reservations", {
+    fetch(getPeopleCounterUrl("/reservations"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ time, action: "remove" }),
@@ -386,7 +401,7 @@ function startCamera() {
     elements.monitorMessage.style.display = "block";
     elements.monitorFrame.style.display = "none";
     elements.monitorMessage.textContent = "카메라화면을 기다리는 중입니다.";
-    elements.monitorFrame.src = `${MONITOR_STREAM_URL}?t=${Date.now()}`;
+    elements.monitorFrame.src = `${getPeopleCounterUrl("/video_feed")}?t=${Date.now()}`;
 }
 
 function stopCamera() {
@@ -396,6 +411,8 @@ function stopCamera() {
 }
 
 function setActiveView(view) {
+    activeView = view;
+
     elements.navTabs.forEach((tab) => {
         tab.classList.toggle("active", tab.dataset.view === view);
     });
@@ -415,6 +432,11 @@ function setActiveView(view) {
         loadParkingState();
     } else {
         stopParkingStream();
+    }
+
+    if (view === "home") {
+        loadCountState();
+        fetchReservations();
     }
 
     window.scrollTo(0, 0);
@@ -501,39 +523,23 @@ async function setAlarm() {
 }
 
 function showToastSet(time) {
-    const container = document.getElementById("toast-container");
-    const toast = document.createElement("div");
-    toast.className = "toast-item toast-info";
-    toast.innerHTML = `
-        <div class="toast-icon"><i class="ti ti-bell" aria-hidden="true"></i></div>
-        <div class="toast-body">
-            <p class="toast-eyebrow">알림 설정 완료</p>
-            <p class="toast-title">${time} 버스 알림 설정됨</p>
-            <p class="toast-sub">출발 15분 전에 알려드릴게요</p>
-        </div>
-        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
-    `;
-    toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
-    container.appendChild(toast);
-    setTimeout(() => dismissToast(toast), 4000);
+    createToast({
+        level: "info",
+        icon: "bus",
+        eyebrow: "알림 설정 완료",
+        title: `${time} 버스 알림 설정됨`,
+        sub: "출발 15분 전에 알려드릴게요",
+    });
 }
 
 function showToastCancel(time) {
-    const container = document.getElementById("toast-container");
-    const toast = document.createElement("div");
-    toast.className = "toast-item toast-warning";
-    toast.innerHTML = `
-        <div class="toast-icon"><i class="ti ti-bell-off" aria-hidden="true"></i></div>
-        <div class="toast-body">
-            <p class="toast-eyebrow">알림 취소됨</p>
-            <p class="toast-title">${time} 버스 알림 취소됨</p>
-            <p class="toast-sub">해당 시간 알림이 해제되었습니다</p>
-        </div>
-        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
-    `;
-    toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
-    container.appendChild(toast);
-    setTimeout(() => dismissToast(toast), 4000);
+    createToast({
+        level: "warning",
+        icon: "bus",
+        eyebrow: "알림 취소됨",
+        title: `${time} 버스 알림 취소됨`,
+        sub: "해당 시간 알림이 해제되었습니다",
+    });
 }
 
 function getToastLevel(time) {
@@ -545,29 +551,61 @@ function getToastLevel(time) {
 }
 
 function showToast(time) {
-    const container = document.getElementById("toast-container");
     const { level, label } = getToastLevel(time);
     const count = getReservationCount(time);
     const percent = Math.min((count / MAX_WAITING_COUNT) * 100, 100);
 
+    createToast({
+        level,
+        icon: "bus",
+        eyebrow: "Departure Alert",
+        title: `${time} 버스 출발 15분 전`,
+        sub: label,
+        progress: percent,
+        timeout: 6000,
+    });
+}
+
+function createToast({ level, icon, eyebrow, title, sub, progress = null, timeout = 4000 }) {
+    const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
     toast.className = `toast-item toast-${level}`;
     toast.innerHTML = `
-        <div class="toast-icon"><i class="ti ti-bus" aria-hidden="true"></i></div>
+        <div class="toast-icon">${getToastIcon(icon)}</div>
         <div class="toast-body">
-            <p class="toast-eyebrow">Departure Alert</p>
-            <p class="toast-title">${time} 버스 출발 15분 전</p>
-            <p class="toast-sub">${label}</p>
-            <div class="toast-progress">
-                <div class="toast-progress-fill" style="width:${percent}%"></div>
-            </div>
+            <p class="toast-eyebrow">${eyebrow}</p>
+            <p class="toast-title">${title}</p>
+            <p class="toast-sub">${sub}</p>
+            ${progress === null ? "" : `
+                <div class="toast-progress">
+                    <div class="toast-progress-fill" style="width:${progress}%"></div>
+                </div>
+            `}
         </div>
-        <button class="toast-close" aria-label="닫기"><i class="ti ti-x"></i></button>
+        <button class="toast-close" aria-label="닫기">×</button>
     `;
 
     toast.querySelector(".toast-close").addEventListener("click", () => dismissToast(toast));
     container.appendChild(toast);
-    setTimeout(() => dismissToast(toast), 6000);
+    setTimeout(() => dismissToast(toast), timeout);
+}
+
+function getToastIcon(icon) {
+    if (icon !== "bus") {
+        return "";
+    }
+
+    return `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3.5 9.5c0-1.4 1.1-2.5 2.5-2.5h9.7c1 0 1.9.5 2.5 1.3l2.3 3.2v4.3H3.5V9.5z"></path>
+            <path d="M5.8 10h3.1"></path>
+            <path d="M10.8 10h3.1"></path>
+            <path d="M15.8 10h2.1l1.2 1.7"></path>
+            <path d="M3.5 13.2h17"></path>
+            <circle cx="7.4" cy="16.2" r="1.7"></circle>
+            <circle cx="16.8" cy="16.2" r="1.7"></circle>
+        </svg>
+    `;
 }
 
 function dismissToast(toast) {
@@ -636,7 +674,19 @@ updateDashboard(DEFAULT_WAITING_COUNT);
 loadCountState();
 fetchReservations();
 updateClock();
-window.setInterval(loadCountState,   1000);
-window.setInterval(fetchReservations, 3000);
-window.setInterval(loadParkingState, 1000);
-window.setInterval(updateClock,      1000);
+window.setInterval(() => {
+    if (activeView === "home") {
+        loadCountState();
+    }
+}, 1000);
+window.setInterval(() => {
+    if (activeView === "home") {
+        fetchReservations();
+    }
+}, 3000);
+window.setInterval(() => {
+    if (activeView === "parking") {
+        loadParkingState();
+    }
+}, 1000);
+window.setInterval(updateClock, 1000);
