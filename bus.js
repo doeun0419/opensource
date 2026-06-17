@@ -383,8 +383,8 @@ async function loadParkingState() {
 }
 
 function startParkingStream() {
-    elements.parkingMessage.style.display = "block";
-    elements.parkingFrame.style.display = "none";
+    elements.parkingMessage.style.display = "none";
+    elements.parkingFrame.style.display = "block";
     elements.parkingMessage.textContent = "주차장 영상을 기다리는 중입니다.";
     elements.parkingFrame.src = `${getParkingStreamUrl()}?t=${Date.now()}`;
 }
@@ -407,8 +407,8 @@ function showParkingMessage() {
 }
 
 function startCamera() {
-    elements.monitorMessage.style.display = "block";
-    elements.monitorFrame.style.display = "none";
+    elements.monitorMessage.style.display = "none";
+    elements.monitorFrame.style.display = "block";
     elements.monitorMessage.textContent = "카메라화면을 기다리는 중입니다.";
     elements.monitorFrame.src = `${getPeopleCounterUrl("/video_feed")}?t=${Date.now()}`;
 }
