@@ -246,6 +246,8 @@ def parse_arguments():
                     help=f"감지 간격 프레임 수 (기본: {SKIP})")
     ap.add_argument("--jpeg-quality", type=int, default=75,
                     help="웹 MJPEG 스트림 JPEG 품질 (기본: 75)")
+    ap.add_argument("--analysis-interval", type=float, default=0,
+                    help="DNN 감지 실행 간격(초). 0이면 skip-frames 기준 사용")
     ap.add_argument("--port", type=int, default=8002,
                     help="MJPEG 스트림 서버 포트 (기본: 8002)")
     ap.add_argument("--window", action="store_true",
@@ -264,6 +266,7 @@ def main():
     args = parse_arguments()
     TOTAL_SLOTS = args["total"]
     args["skip_frames"] = max(1, args["skip_frames"])
+    args["analysis_interval"] = max(0, args["analysis_interval"])
     WEB_JPEG_QUALITY = max(35, min(95, args["jpeg_quality"]))
     INPUT = args["input"]
 
@@ -280,6 +283,8 @@ def main():
     last_cars = []
     parked = 0
     tf_count = 0
+    last_analysis_at = 0
+    has_analysis_result = False
 
     write_parking_state(TOTAL_SLOTS, 0, TOTAL_SLOTS)
     print(f"[INFO] 처리 시작 (구역 x[{ZONE_X1},{ZONE_X2}] y[{ZONE_Y1},{ZONE_Y2}], 총 {TOTAL_SLOTS}면)")
@@ -294,12 +299,23 @@ def main():
             if args["no_loop"]:
                 break
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            last_analysis_at = 0
+            has_analysis_result = False
             continue
 
         frame = cv2.resize(frame_orig, (W, H))
 
         # 지정한 간격마다 감지 → 점유 수 평활
-        if tf_count % args["skip_frames"] == 0:
+        now_monotonic = time.monotonic()
+        if args["analysis_interval"] > 0:
+            should_detect = (
+                not has_analysis_result or
+                now_monotonic - last_analysis_at >= args["analysis_interval"]
+            )
+        else:
+            should_detect = tf_count % args["skip_frames"] == 0
+
+        if should_detect:
             last_cars = detect_vehicles(net, frame, args["confidence"])
             raw_parked = sum(1 for (cx, cy, *_) in last_cars if in_zone(cx, cy))
             counts.append(raw_parked)
@@ -307,6 +323,8 @@ def main():
             parked = max(0, min(parked, TOTAL_SLOTS))
             # 점유 수가 바뀔 때마다 현황 기록 → 웹 카드가 영상에 그려진 값과 항상 일치
             write_parking_state(TOTAL_SLOTS, parked, max(TOTAL_SLOTS - parked, 0))
+            last_analysis_at = now_monotonic
+            has_analysis_result = True
 
         available = max(TOTAL_SLOTS - parked, 0)
 

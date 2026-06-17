@@ -87,6 +87,8 @@ def parse_arguments():
         help="frame width used for detection and browser streaming")
     ap.add_argument("--jpeg-quality", type=int, default=75,
         help="JPEG quality for the browser MJPEG stream")
+    ap.add_argument("--analysis-interval", type=float, default=0,
+        help="seconds between DNN detection passes; 0 uses skip-frames")
     ap.add_argument("--window", action="store_true",
         help="open the OpenCV desktop preview window")
     ap.add_argument("--no-window", action="store_true",
@@ -375,6 +377,7 @@ def people_counter():
     args = parse_arguments()
     args["skip_frames"] = max(1, args["skip_frames"])
     args["process_width"] = max(240, args["process_width"])
+    args["analysis_interval"] = max(0, args["analysis_interval"])
     WEB_JPEG_QUALITY = max(35, min(95, args["jpeg_quality"]))
     override_departures = parse_departure_times(args.get("departure_times"))
     start_web_stream_server()
@@ -426,6 +429,8 @@ def people_counter():
     boarded_total = 0
     served_departures = set()
     last_rects = []
+    last_analysis_at = 0
+    has_analysis_result = False
     write_count_state("init", totalDown, totalUp, 0, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     # start the frames per second throughput estimator
@@ -461,6 +466,8 @@ def people_counter():
             out_time = []
             boarded_total = 0
             last_rects = []
+            last_analysis_at = 0
+            has_analysis_result = False
             write_count_state("init", totalDown, totalUp, 0,
                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
             continue
@@ -492,9 +499,18 @@ def people_counter():
             writer = cv2.VideoWriter(args["output"], fourcc, 30,
                 (W, H), True)
 
-        # Detection is the expensive part. On weak cloud CPUs, run it every
-        # N frames and reuse the last boxes between detection passes.
-        status = "Detecting" if totalFrames % args["skip_frames"] == 0 else "Tracking"
+        # Detection is the expensive part. Cloud demos can run it on a
+        # wall-clock interval while the stream keeps moving between passes.
+        now_monotonic = time.monotonic()
+        if args["analysis_interval"] > 0:
+            should_detect = (
+                not has_analysis_result or
+                now_monotonic - last_analysis_at >= args["analysis_interval"]
+            )
+        else:
+            should_detect = totalFrames % args["skip_frames"] == 0
+
+        status = "Detecting" if should_detect else "Tracking"
         rects = last_rects
 
         if status == "Detecting":
@@ -526,6 +542,8 @@ def people_counter():
                     rects.append((startX, startY, endX, endY))
 
             last_rects = rects
+            last_analysis_at = now_monotonic
+            has_analysis_result = True
 
         # draw a horizontal line in the center of the frame -- once an
         # object crosses this line we will determine whether they were

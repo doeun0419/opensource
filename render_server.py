@@ -30,9 +30,7 @@ def start_workers():
             "--prototxt", "detector/MobileNetSSD_deploy.prototxt",
             "--model", "detector/MobileNetSSD_deploy.caffemodel",
             "--input", "utils/data/tests/test_1.mp4",
-            "--skip-frames", "12",
-            "--process-width", "320",
-            "--jpeg-quality", "55",
+            "--analysis-interval", "1",
         ]),
         start_process([
             python, "parking_counter.py",
@@ -40,8 +38,7 @@ def start_workers():
             "--prototxt", "detector/MobileNetSSD_deploy.prototxt",
             "--model", "detector/MobileNetSSD_deploy.caffemodel",
             "--port", "8002",
-            "--skip-frames", "12",
-            "--jpeg-quality", "55",
+            "--analysis-interval", "1",
         ]),
     ]
     return workers
