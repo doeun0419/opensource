@@ -3,9 +3,7 @@ const COUNT_STATE_URL = "utils/data/count_state.json";
 const MAX_WAITING_COUNT = 60;
 const DEFAULT_WAITING_COUNT = 30;
 
-// 주차장: parking_counter.py 가 별도 포트(기본 8002)에서 스트리밍
 const PARKING_STREAM_PORT = 8002;
-const PARKING_STREAM_URL = `http://${location.hostname || "localhost"}:${PARKING_STREAM_PORT}/video_feed`;
 const PARKING_STATE_URL = "utils/data/parking_state.json";
 
 const elements = {
@@ -60,6 +58,17 @@ function getPeopleCounterBaseUrl() {
 
 function getPeopleCounterUrl(path) {
     return `${getPeopleCounterBaseUrl()}${path}`;
+}
+
+function getParkingStreamUrl() {
+    const localHosts = ["localhost", "127.0.0.1", ""];
+    const isLocalHost = localHosts.includes(window.location.hostname);
+
+    if (window.location.protocol === "file:" || (isLocalHost && window.location.port !== String(PARKING_STREAM_PORT))) {
+        return `http://localhost:${PARKING_STREAM_PORT}/video_feed`;
+    }
+
+    return "/parking_feed";
 }
 
 // ─── 예약 데이터 관련 (서버 API 사용) ──────────────────────────
@@ -377,7 +386,7 @@ function startParkingStream() {
     elements.parkingMessage.style.display = "block";
     elements.parkingFrame.style.display = "none";
     elements.parkingMessage.textContent = "주차장 영상을 기다리는 중입니다.";
-    elements.parkingFrame.src = `${PARKING_STREAM_URL}?t=${Date.now()}`;
+    elements.parkingFrame.src = `${getParkingStreamUrl()}?t=${Date.now()}`;
 }
 
 function stopParkingStream() {
