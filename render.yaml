@@ -1,7 +1,10 @@
 services:
   - type: web
     name: shuttlecock-demo
-    env: python
+    runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: python -m pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
     startCommand: python render_server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
