@@ -53,6 +53,7 @@ FRIDAY_DEPARTURES = {
 latest_web_frame = None
 latest_web_frame_lock = threading.Lock()
 reservation_lock = threading.Lock()
+WEB_JPEG_QUALITY = 75
 
 def read_reservations():
     try:
@@ -80,8 +81,12 @@ def parse_arguments():
     # confidence default 0.4
     ap.add_argument("-c", "--confidence", type=float, default=0.12,
         help="minimum probability to filter weak detections")
-    ap.add_argument("-s", "--skip-frames", type=int, default=2,
+    ap.add_argument("-s", "--skip-frames", type=int, default=1,
         help="# of skip frames between detections")
+    ap.add_argument("--process-width", type=int, default=500,
+        help="frame width used for detection and browser streaming")
+    ap.add_argument("--jpeg-quality", type=int, default=75,
+        help="JPEG quality for the browser MJPEG stream")
     ap.add_argument("--window", action="store_true",
         help="open the OpenCV desktop preview window")
     ap.add_argument("--no-window", action="store_true",
@@ -308,7 +313,11 @@ def start_web_stream_server(port=8001):
 
 def update_web_frame(frame):
     global latest_web_frame
-    success, encoded = cv2.imencode(".jpg", frame)
+    success, encoded = cv2.imencode(
+        ".jpg",
+        frame,
+        [int(cv2.IMWRITE_JPEG_QUALITY), WEB_JPEG_QUALITY]
+    )
     if not success:
         return
 
@@ -362,7 +371,11 @@ def send_count_update(event, total_enter, total_exit, current_inside, timestamp)
 
 def people_counter():
     # main function for people_counter.py
+    global WEB_JPEG_QUALITY
     args = parse_arguments()
+    args["skip_frames"] = max(1, args["skip_frames"])
+    args["process_width"] = max(240, args["process_width"])
+    WEB_JPEG_QUALITY = max(35, min(95, args["jpeg_quality"]))
     override_departures = parse_departure_times(args.get("departure_times"))
     start_web_stream_server()
     # initialize the list of class labels MobileNet SSD was trained to detect
@@ -412,6 +425,7 @@ def people_counter():
     in_time = []
     boarded_total = 0
     served_departures = set()
+    last_rects = []
     write_count_state("init", totalDown, totalUp, 0, datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
     # start the frames per second throughput estimator
@@ -446,6 +460,7 @@ def people_counter():
             in_time = []
             out_time = []
             boarded_total = 0
+            last_rects = []
             write_count_state("init", totalDown, totalUp, 0,
                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
             continue
@@ -461,9 +476,9 @@ def people_counter():
             override_departures
         )
 
-        # resize the frame to have a maximum width of 500 pixels
+        # resize the frame before detection and browser streaming
         # (the less data we have, the faster we can process it)
-        frame = imutils.resize(frame, width = 500)
+        frame = imutils.resize(frame, width = args["process_width"])
 
         # if the frame dimensions are empty, set them
         if W is None or H is None:
@@ -477,43 +492,46 @@ def people_counter():
             writer = cv2.VideoWriter(args["output"], fourcc, 30,
                 (W, H), True)
 
-        # run the object detector on EVERY frame and collect person boxes.
-        # (Top-down footage is hard for MobileNet-SSD, so detecting every
-        # frame — instead of every N frames with a tracker filling gaps —
-        # gives far better recall and cleaner trajectories for line crossing.)
-        status = "Detecting"
-        rects = []
+        # Detection is the expensive part. On weak cloud CPUs, run it every
+        # N frames and reuse the last boxes between detection passes.
+        status = "Detecting" if totalFrames % args["skip_frames"] == 0 else "Tracking"
+        rects = last_rects
 
-        # convert the frame to a blob and pass it through the network
-        blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
-        net.setInput(blob)
-        detections = net.forward()
+        if status == "Detecting":
+            rects = []
 
-        # loop over the detections
-        for i in np.arange(0, detections.shape[2]):
-            # extract the confidence (i.e., probability)
-            confidence = detections[0, 0, i, 2]
+            # convert the frame to a blob and pass it through the network
+            blob = cv2.dnn.blobFromImage(frame, 0.007843, (W, H), 127.5)
+            net.setInput(blob)
+            detections = net.forward()
 
-            # filter out weak detections by requiring a minimum confidence
-            if confidence > args["confidence"]:
-                # extract the index of the class label
-                idx = int(detections[0, 0, i, 1])
+            # loop over the detections
+            for i in np.arange(0, detections.shape[2]):
+                # extract the confidence (i.e., probability)
+                confidence = detections[0, 0, i, 2]
 
-                # if the class label is not a person, ignore it
-                if CLASSES[idx] != "person":
-                    continue
+                # filter out weak detections by requiring a minimum confidence
+                if confidence > args["confidence"]:
+                    # extract the index of the class label
+                    idx = int(detections[0, 0, i, 1])
 
-                # compute the (x, y)-coordinates of the bounding box and
-                # add them to the rectangles list for the centroid tracker
-                box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
-                (startX, startY, endX, endY) = box.astype("int")
-                rects.append((startX, startY, endX, endY))
+                    # if the class label is not a person, ignore it
+                    if CLASSES[idx] != "person":
+                        continue
+
+                    # compute the (x, y)-coordinates of the bounding box and
+                    # add them to the rectangles list for the centroid tracker
+                    box = detections[0, 0, i, 3:7] * np.array([W, H, W, H])
+                    (startX, startY, endX, endY) = box.astype("int")
+                    rects.append((startX, startY, endX, endY))
+
+            last_rects = rects
 
         # draw a horizontal line in the center of the frame -- once an
         # object crosses this line we will determine whether they were
         # moving 'up' or 'down'
         cv2.line(frame, (0, LINE_Y), (W, LINE_Y), (0, 0, 0), 3)
-        cv2.putText(frame, "-Prediction border - Entrance-", (10, H - ((i * 20) + 200)),
+        cv2.putText(frame, "-Prediction border - Entrance-", (10, max(20, H - 200)),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
 
         # use the centroid tracker to associate the (1) old object

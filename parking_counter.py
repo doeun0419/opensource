@@ -71,11 +71,16 @@ def put_kr(frame, text, pos, font_key='label', color=(255,255,255)):
 # ── 웹 스트리밍 서버 (MJPEG) ─────────────────────────
 latest_frame = None
 latest_frame_lock = threading.Lock()
+WEB_JPEG_QUALITY = 75
 
 
 def update_web_frame(frame):
     global latest_frame
-    success, encoded = cv2.imencode(".jpg", frame)
+    success, encoded = cv2.imencode(
+        ".jpg",
+        frame,
+        [int(cv2.IMWRITE_JPEG_QUALITY), WEB_JPEG_QUALITY]
+    )
     if not success:
         return
     with latest_frame_lock:
@@ -237,6 +242,10 @@ def parse_arguments():
                     help=f"주차 총 면수 (기본: {TOTAL_SLOTS})")
     ap.add_argument("-c", "--confidence", type=float, default=CONFIDENCE,
                     help=f"SSD 최소 신뢰도 (기본: {CONFIDENCE})")
+    ap.add_argument("-s", "--skip-frames", type=int, default=SKIP,
+                    help=f"감지 간격 프레임 수 (기본: {SKIP})")
+    ap.add_argument("--jpeg-quality", type=int, default=75,
+                    help="웹 MJPEG 스트림 JPEG 품질 (기본: 75)")
     ap.add_argument("--port", type=int, default=8002,
                     help="MJPEG 스트림 서버 포트 (기본: 8002)")
     ap.add_argument("--window", action="store_true",
@@ -250,9 +259,12 @@ def parse_arguments():
 
 # ── 메인 ─────────────────────────────────────────────
 def main():
+    global WEB_JPEG_QUALITY
     global TOTAL_SLOTS
     args = parse_arguments()
     TOTAL_SLOTS = args["total"]
+    args["skip_frames"] = max(1, args["skip_frames"])
+    WEB_JPEG_QUALITY = max(35, min(95, args["jpeg_quality"]))
     INPUT = args["input"]
 
     if not os.path.isfile(INPUT):
@@ -286,8 +298,8 @@ def main():
 
         frame = cv2.resize(frame_orig, (W, H))
 
-        # SKIP 프레임마다 감지 → 점유 수 평활
-        if tf_count % SKIP == 0:
+        # 지정한 간격마다 감지 → 점유 수 평활
+        if tf_count % args["skip_frames"] == 0:
             last_cars = detect_vehicles(net, frame, args["confidence"])
             raw_parked = sum(1 for (cx, cy, *_) in last_cars if in_zone(cx, cy))
             counts.append(raw_parked)
